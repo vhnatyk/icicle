@@ -28,6 +28,11 @@ jobs:
         use-github-cache: true
       # Build from cargo - Rust utils are preinstalled on latest images
       # https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2204-Readme.md#rust-tools
+      # Run linter check
+    - name: Run lint
+      run: cargo fmt --check
+    - name: Run clippy lint
+      run: cargo clippy --all-targets --all-features
     - name: Build
       run: cargo build --release --verbose
       
