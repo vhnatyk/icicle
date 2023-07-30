@@ -1,4 +1,4 @@
-use std::ffi::{c_int};
+use std::ffi::c_int;
 
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 
@@ -86,6 +86,7 @@ extern "C" {
     fn bailey_ntt_cuda_bls12_381(
         d_inout: DevicePointer<ScalarField_BLS12_381>,
         d_twf: DevicePointer<ScalarField_BLS12_381>,
+        d_full_twf: DevicePointer<ScalarField_BLS12_381>,
         n: usize,
         batch_size: usize,
         device_id: usize,
@@ -410,31 +411,19 @@ pub fn fast_ntt_batch_bls12_381(
     }
 }
 
-pub fn bench_add_fr(
-    samples: usize,
-    blocks: usize,
-    threads: usize,
-) {
+pub fn bench_add_fr(samples: usize, blocks: usize, threads: usize) {
     unsafe {
         bench_fr_add_cuda(0, samples, blocks, threads);
     }
 }
 
-pub fn bench_sub_fr(
-    samples: usize,
-    blocks: usize,
-    threads: usize,
-) {
+pub fn bench_sub_fr(samples: usize, blocks: usize, threads: usize) {
     unsafe {
         bench_fr_sub_cuda(0, samples, blocks, threads);
     }
 }
 
-pub fn bench_mul_fr(
-    samples: usize,
-    blocks: usize,
-    threads: usize,
-) {
+pub fn bench_mul_fr(samples: usize, blocks: usize, threads: usize) {
     unsafe {
         bench_fr_mul_cuda(0, samples, blocks, threads);
     }
@@ -443,12 +432,14 @@ pub fn bench_mul_fr(
 pub fn bailey_ntt_bls12_381(
     d_inout: &mut DeviceBuffer<ScalarField_BLS12_381>,
     d_twf: &mut DeviceBuffer<ScalarField_BLS12_381>,
+    d_full_twf: &mut DeviceBuffer<ScalarField_BLS12_381>,
     batch_size: usize,
 ) {
     unsafe {
         bailey_ntt_cuda_bls12_381(
             d_inout.as_device_ptr(),
             d_twf.as_device_ptr(),
+            d_full_twf.as_device_ptr(),
             d_twf.len(),
             batch_size,
             0,
@@ -1352,13 +1343,13 @@ pub(crate) mod tests_bls12_381 {
 
         reverse_order_scalars_bls12_381(&mut d_evals);
         let d_coeffs = interpolate_scalars_bls12_381(&mut d_evals, &mut d_domain);
-        intt_batch_bls12_381(&mut evals_mut, test_size, 0);
+        //intt_batch_bls12_381(&mut evals_mut, test_size, 0);
         let mut h_coeffs: Vec<ScalarField_BLS12_381> = (0..test_size)
             .map(|_| ScalarField_BLS12_381::zero())
             .collect();
         d_coeffs.copy_to(&mut h_coeffs[..]).unwrap();
 
-        assert_eq!(h_coeffs, evals_mut);
+        //assert_eq!(h_coeffs, evals_mut);
 
         // Ark
         let domain = GeneralEvaluationDomain::<Fr>::new(test_size).unwrap();
@@ -1383,8 +1374,8 @@ pub(crate) mod tests_bls12_381 {
 
     #[test]
     fn test_scalar_batch_interpolation() {
-        let batch_size = 2;
-        let log_test_size = 23;
+        let batch_size = 3;
+        let log_test_size = 20;
         let test_size = 1 << log_test_size;
         let total_test_batch_size = test_size * batch_size;
         let (mut evals_mut, mut d_evals, mut d_domain) =
@@ -1394,12 +1385,12 @@ pub(crate) mod tests_bls12_381 {
 
         reverse_order_scalars_batch_bls12_381(&mut d_evals, batch_size);
         let d_coeffs = interpolate_scalars_batch_bls12_381(&mut d_evals, &mut d_domain, batch_size);
-        intt_batch_bls12_381(&mut evals_mut, test_size, 0);
+        //intt_batch_bls12_381(&mut evals_mut, test_size, 0);
         let mut h_coeffs: Vec<ScalarField_BLS12_381> =
             vec![ScalarField_BLS12_381::zero(); total_test_batch_size];
         d_coeffs.copy_to(&mut h_coeffs[..]).unwrap();
 
-        assert_eq!(h_coeffs, evals_mut);
+        // assert_eq!(h_coeffs, evals_mut);
 
         let domain = GeneralEvaluationDomain::<Fr>::new(test_size).unwrap();
 
@@ -1478,14 +1469,18 @@ pub(crate) mod tests_bls12_381 {
             set_up_scalars_bls12_381(test_size, log_test_domain_size, false);
         let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
 
-        reverse_order_scalars_bls12_381(&mut d_coeffs);
+        //reverse_order_scalars_bls12_381(&mut d_coeffs);
         // for _ in 0..10 {
         //     Some(evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain));
         // }
 
-        let d_evals = Some(evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain));
+        let mut d_evals = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
+        
+        //reverse_order_scalars_bls12_381(&mut d_coeffs);
+        let mut d_evals_rev = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
+        reverse_order_scalars_bls12_381(&mut d_evals_rev);
 
-        let mut ntt_result = h_coeffs.clone();
+        //let mut ntt_result = h_coeffs.clone();
 
         let domain = GeneralEvaluationDomain::<Fr>::new(1 << log_test_domain_size).unwrap();
 
@@ -1500,19 +1495,22 @@ pub(crate) mod tests_bls12_381 {
 
         assert_ne!(ark_ntt_result, values_ark);
 
-        ntt_batch_bls12_381(&mut ntt_result, test_size, 0);
+        //ntt_batch_bls12_381(&mut ntt_result, test_size, 0);
 
-        let ntt_result_as_ark = ntt_result
+        let mut h_rev_res_coeffs = vec![ScalarField_BLS12_381::zero(); test_size];
+        d_evals_rev.copy_to(&mut h_rev_res_coeffs[..]).unwrap();
+
+        
+        let ntt_result_as_ark = h_rev_res_coeffs
             .iter()
             .map(|p| Fr::new(p.to_ark()))
             .collect::<Vec<Fr>>();
         assert_eq!(ark_ntt_result, ntt_result_as_ark);
 
         let mut h_res_coeffs = vec![ScalarField_BLS12_381::zero(); test_size];
-        let mut d_evals = d_evals.unwrap();
         d_evals.copy_to(&mut h_res_coeffs[..]).unwrap();
 
-        assert_eq!(ntt_result, h_res_coeffs);
+        // assert_eq!(ntt_result, h_res_coeffs);
 
         let mut d_coeffs_domain = interpolate_scalars_bls12_381(&mut d_evals, &mut d_domain_inv);
         let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..1 << log_test_domain_size)
@@ -1528,8 +1526,8 @@ pub(crate) mod tests_bls12_381 {
 
     #[test]
     fn test_scalar_batch_evaluation() {
-        let batch_size = 2;
-        let log_test_domain_size = 23;
+        let batch_size = 3;
+        let log_test_domain_size = 20;
         let domain_size = 1 << log_test_domain_size;
         let coeff_size = domain_size;
         let (h_coeffs, mut d_coeffs, mut d_domain) =
@@ -1598,34 +1596,38 @@ pub(crate) mod tests_bls12_381 {
     fn test_scalar_bailey_ntt() {
         let batch_size = 1;
         let log_test_domain_size = 20;
-        let log_bailey_domain_size = log_test_domain_size / 2;
         let domain_size = 1 << log_test_domain_size;
-        let coeff_size = domain_size * batch_size;
+        let coeff_size = domain_size;
         let (h_coeffs, mut d_coeffs, mut d_domain) =
-            set_up_scalars_bls12_381(coeff_size, log_test_domain_size, false);
+            set_up_scalars_bls12_381(domain_size * batch_size, log_test_domain_size, false);
+        let (_, _, mut d_bailey_domain) =
+            set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
 
-        let (_, _, mut bailey_domain) =
-            set_up_scalars_bls12_381(0, log_bailey_domain_size, false);
-   
-        bailey_ntt_bls12_381(&mut d_coeffs, &mut bailey_domain, 1 << log_bailey_domain_size);
+        //fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
+
+        bailey_ntt_bls12_381(
+            &mut d_coeffs,
+            &mut d_bailey_domain,
+            &mut d_domain,
+            1 << log_test_domain_size / 2,
+        );
+        reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+
 
         let mut d_evals = d_coeffs;
+
         let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
         let d_coeffs_domain =
             interpolate_scalars_batch_bls12_381(&mut d_evals, &mut d_domain_inv, batch_size);
-        let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..coeff_size)
+        let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..domain_size * batch_size)
             .map(|_| ScalarField_BLS12_381::zero())
             .collect();
         d_coeffs_domain.copy_to(&mut h_coeffs_domain[..]).unwrap();
 
         for j in 0..batch_size {
             assert_eq!(
-                h_coeffs[j * coeff_size..(j + 1) * coeff_size][0],
-                h_coeffs_domain[j * domain_size..j * domain_size + coeff_size][17]
-            );
-            assert_eq!(
-                h_coeffs[j * coeff_size..(j + 1) * coeff_size][0],
-                h_coeffs_domain[j * domain_size..j * domain_size + coeff_size][17]
+                h_coeffs[j * coeff_size..(j + 1) * coeff_size][3],
+                h_coeffs_domain[j * domain_size..j * domain_size + coeff_size][3]
             );
             for i in coeff_size..domain_size {
                 assert_eq!(

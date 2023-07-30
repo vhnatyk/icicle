@@ -7,7 +7,7 @@ use criterion::{
 };
 
 use icicle_utils::{
-    curves::bls12_381::ScalarField_BLS12_381,
+    curves::bls12_381::{Point_BLS12_381, ScalarField_BLS12_381},
     test_bls12_381::{
         bailey_ntt_bls12_381, bench_add_fr, bench_mul_fr, evaluate_points_batch_bls12_381,
         evaluate_scalars_batch_bls12_381, fast_ntt_batch_bls12_381,
@@ -34,6 +34,7 @@ fn bench_ntt(c: &mut Criterion) {
             fn fast_ntt(
                 d_evaluations: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 d_domain: &mut DeviceBuffer<ScalarField_BLS12_381>,
+                _d_domain_full: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 batch_size: usize,
             ) -> DeviceBuffer<ScalarField_BLS12_381> {
                 //bailey_ntt_bls12_381(d_evaluations, d_domain, batch_size);
@@ -46,9 +47,15 @@ fn bench_ntt(c: &mut Criterion) {
             fn bailey_ntt(
                 d_evaluations: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 d_domain: &mut DeviceBuffer<ScalarField_BLS12_381>,
-                batch_size: usize,
+                d_domain_full: &mut DeviceBuffer<ScalarField_BLS12_381>,
+                _batch_size: usize,
             ) -> DeviceBuffer<ScalarField_BLS12_381> {
-                bailey_ntt_bls12_381(d_evaluations, d_domain, batch_size);
+                bailey_ntt_bls12_381(
+                    d_evaluations,
+                    d_domain,
+                    d_domain_full,
+                    d_domain_full.len() / d_domain.len(),
+                );
                 unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() }
             }
 
@@ -60,8 +67,39 @@ fn bench_ntt(c: &mut Criterion) {
                 Vec<ScalarField_BLS12_381>,
                 DeviceBuffer<ScalarField_BLS12_381>,
                 DeviceBuffer<ScalarField_BLS12_381>,
+                Option<DeviceBuffer<ScalarField_BLS12_381>>,
             ) {
-                set_up_scalars_bls12_381(test_size, log_domain_size / 2, inverse)
+                let (a, b, c) = set_up_scalars_bls12_381(test_size, log_domain_size / 2, inverse);
+                let (_, _, d) = set_up_scalars_bls12_381(0, log_domain_size, inverse);
+                (a, b, c, Some(d))
+            }
+
+            pub fn set_up_ntt_scalars_bls12_381(
+                test_size: usize,
+                log_domain_size: usize,
+                inverse: bool,
+            ) -> (
+                Vec<ScalarField_BLS12_381>,
+                DeviceBuffer<ScalarField_BLS12_381>,
+                DeviceBuffer<ScalarField_BLS12_381>,
+                Option<DeviceBuffer<ScalarField_BLS12_381>>,
+            ) {
+                let (a, b, c) = set_up_scalars_bls12_381(test_size, log_domain_size, inverse);
+                (a, b, c, None)
+            }
+
+            pub fn set_up_ecntt_point_bls12_381(
+                test_size: usize,
+                log_domain_size: usize,
+                inverse: bool,
+            ) -> (
+                Vec<Point_BLS12_381>,
+                DeviceBuffer<Point_BLS12_381>,
+                DeviceBuffer<ScalarField_BLS12_381>,
+                Option<&'static mut DeviceBuffer<ScalarField_BLS12_381>>,
+            ) {
+                let (a, b, c) = set_up_points_bls12_381(test_size, log_domain_size, inverse);
+                (a, b, c, None)
             }
 
             bench_template(
@@ -69,7 +107,7 @@ fn bench_ntt(c: &mut Criterion) {
                 ntt_size,
                 batch_size,
                 log_ntt_size,
-                set_up_scalars_bls12_381,
+                set_up_ntt_scalars_bls12_381,
                 fast_ntt,
                 group,
                 "fast NTT",
@@ -79,10 +117,10 @@ fn bench_ntt(c: &mut Criterion) {
 
             bench_template(
                 MAX_SCALARS_LOG2,
-                ntt_size,
-                batch_size,
-                log_ntt_size,
-                set_up_scalars_bls12_381,
+                ntt_size * batch_size,
+                1,
+                log_ntt_size * 2,
+                set_up_bailey_scalars_bls12_381,
                 bailey_ntt,
                 group,
                 "Bailey NTT",
@@ -90,42 +128,18 @@ fn bench_ntt(c: &mut Criterion) {
                 100,
             );
 
-            bench_template(
-                MAX_SCALARS_LOG2,
-                ntt_size,
-                batch_size,
-                log_ntt_size,
-                set_up_scalars_bls12_381,
-                interpolate_scalars_batch_bls12_381,
-                group,
-                "iNTT",
-                true,
-                100,
-            );
-            bench_template(
-                MAX_POINTS_LOG2,
-                ntt_size,
-                batch_size,
-                log_ntt_size,
-                set_up_points_bls12_381,
-                evaluate_points_batch_bls12_381,
-                group,
-                "EC NTT",
-                false,
-                20,
-            );
-            bench_template(
-                MAX_POINTS_LOG2,
-                ntt_size,
-                batch_size,
-                log_ntt_size,
-                set_up_points_bls12_381,
-                interpolate_points_batch_bls12_381,
-                group,
-                "EC iNTT",
-                true,
-                20,
-            );
+            // bench_template(
+            //     MAX_SCALARS_LOG2,
+            //     ntt_size,
+            //     batch_size,
+            //     log_ntt_size,
+            //     set_up_ntt_scalars_bls12_381,
+            //     interpolate_scalars_batch_bls12_381,
+            //     group,
+            //     "iNTT",
+            //     true,
+            //     100,
+            // );
         }
     }
 }
@@ -139,17 +153,23 @@ fn bench_template<E, S>(
         test_size: usize,
         log_domain_size: usize,
         inverse: bool,
-    ) -> (Vec<E>, DeviceBuffer<E>, DeviceBuffer<S>),
+    ) -> (
+        Vec<E>,
+        DeviceBuffer<E>,
+        DeviceBuffer<S>,
+        Option<DeviceBuffer<S>>,
+    ),
     bench_fn: fn(
         d_evaluations: &mut DeviceBuffer<E>,
         d_domain: &mut DeviceBuffer<S>,
+        d_domain_full: &mut DeviceBuffer<S>,
         batch_size: usize,
     ) -> DeviceBuffer<E>,
     g: &mut BenchmarkGroup<WallTime>,
     id: &str,
     inverse: bool,
     samples: usize,
-) -> Option<(Vec<E>, DeviceBuffer<E>)> {
+) -> Option<(Vec<E>, Option<DeviceBuffer<E>>)> {
     let count = ntt_size * batch_size;
 
     let bench_id = format!("{} of size 2^{} in batch {}", id, log_ntt_size, batch_size);
@@ -159,15 +179,18 @@ fn bench_template<E, S>(
         return None;
     }
 
-    let (input, mut d_evals, mut d_domain) = set_data(ntt_size * batch_size, log_ntt_size, inverse);
+    let (input, mut d_evals, mut d_domain, d_domain_full) =
+        set_data(ntt_size * batch_size, log_ntt_size, inverse);
     //let (_, _, mut d_domain_b) = set_data(ntt_size * batch_size, log_ntt_size/2, inverse);
 
-    let first = bench_fn(&mut d_evals, &mut d_domain, batch_size);
+    //let first = bench_fn(&mut d_evals, &mut d_domain, d_domain_full, batch_size);
+    let mut d_domain_full = d_domain_full
+        .unwrap_or_else(|| unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() });
     g.sample_size(samples).bench_function(&bench_id, |b| {
-        b.iter(|| bench_fn(&mut d_evals, &mut d_domain, batch_size))
+        b.iter(|| bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size))
     });
 
-    Some((input, first))
+    Some((input, None))
 }
 
 fn bench_fr_arith(c: &mut Criterion) {

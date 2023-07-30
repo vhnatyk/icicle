@@ -304,6 +304,28 @@ __device__ __host__ void butterfly(E *arrReversed, S *omegas, uint32_t n, uint32
   arrReversed[offset + k] = u - v;
 }
 
+template <typename E, typename S>
+__global__ void batch_mul_tw_ij(E *element_vec, S *scalar_vec, unsigned n2, unsigned n1)
+{
+  int j = threadIdx.x;
+  int i = blockIdx.x;
+  int tid = blockDim.x * i + j;
+  if (tid < n2 * n1)
+  {
+    element_vec[tid] = scalar_vec[i * j] * element_vec[tid];
+  //     element_vec[i * n1 + j] = scalar_vec[i * j] * element_vec[i * n1 + j];
+
+  }
+
+  // for (int j = 0; j < n2; j++)
+  // {
+  //   for (int i = 0; i < n1; i++)
+  //   {
+  //     element_vec[i * n1 + j] = scalar_vec[i * j] * element_vec[i * n1 + j];
+  //   }
+  // }
+}
+
 //************************************************************************************************
 /**
  * Cooley-Tuckey NTT.
@@ -319,103 +341,123 @@ template <typename E, typename S>
 __launch_bounds__(MAX_THREADS_BATCH, 3)
     __global__ void ntt_template_kernel_shared_rev(E *__restrict__ arr_g, uint32_t n, const S *__restrict__ r_twiddles, uint32_t n_div_2_twiddles, uint32_t max_task, uint8_t ss, uint8_t logn_m_1, uint32_t n_div_log2_blocks, uint32_t num_blocks2x, uint32_t n_m1)
 {
-  // if (blockIdx.x < max_task)
-  // {
-  //   // flattened loop allows parallel processing
-
-  //   if (threadIdx.x < blockDim.x)
-  //   {
-  SharedMemory<E> smem;
-  E *arr = smem.getPointer();
-
-  uint16_t l = (blockIdx.x & n_div_log2_blocks) * blockDim.x + threadIdx.x; // to l from chunks to full
-  // uint32_t offset = blockIdx.x * num_blocks2x;
-  arr_g += blockIdx.x * (blockDim.x * 2);
-
-  uint8_t s = logn_m_1 - ss;
-  uint16_t shift_s = 1 << s;
-  uint16_t j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-  auto tw = r_twiddles[j * (n_div_2_twiddles >> s)];
-  uint16_t oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
-  j = oij + shift_s; // reuse for k
-
-  E *uu = arr_g + oij;
-  E *vv = arr_g + j;
-  E *uuu = arr + oij;
-  E *vvv = arr + j;
-
-  auto u = *uu;
-  auto v = *vv;
-  *uuu = u + v;
-  *vvv = tw * (u - v);
-
-  ss++;
-#pragma unroll 7
-  for (; ss < logn_m_1 - 1; ss++)
+  if (blockIdx.x < max_task)
   {
-    s = logn_m_1 - ss;
-    if (s > 4)
-      __syncthreads();
+    // flattened loop allows parallel processing
 
-    shift_s = 1 << s;
-    j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-    tw = r_twiddles[j * (n_div_2_twiddles >> s)];
-    oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
-    j = oij + shift_s; // reuse for k
+    if (threadIdx.x < blockDim.x)
+    {
+      SharedMemory<E> smem;
+      E *arr = smem.getPointer();
 
-    uu = arr + oij;
-    vv = arr + j;
+      uint16_t l = (blockIdx.x & n_div_log2_blocks) * blockDim.x + threadIdx.x; // to l from chunks to full
+      // uint32_t offset = blockIdx.x * num_blocks2x;
+      arr_g += blockIdx.x * (blockDim.x * 2);
 
-    uuu = uu;
-    vvv = vv;
+      uint8_t s = logn_m_1 - ss;
+      uint16_t shift_s = 1 << s;
+      uint16_t j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+      auto tw = r_twiddles[j * (n_div_2_twiddles >> s)];
+      uint16_t oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
+      j = oij + shift_s; // reuse for k
 
-    u = *uu;
-    v = *vv;
-    *uuu = u + v;
-    *vvv = tw * (u - v);
+      E *uu = arr_g + oij;
+      E *vv = arr_g + j;
+      E *uuu = arr + oij;
+      E *vvv = arr + j;
 
-    //__syncthreads();
+      auto u = *uu;
+      auto v = *vv;
+      *uuu = u + v;
+      *vvv = tw * (u - v);
+
+      ss++;
+#pragma unroll 7
+      for (; ss < logn_m_1 - 1; ss++)
+      {
+        s = logn_m_1 - ss;
+        if (s > 4)
+          __syncthreads();
+
+        shift_s = 1 << s;
+        j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+        tw = r_twiddles[j * (n_div_2_twiddles >> s)];
+        oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
+        j = oij + shift_s; // reuse for k
+
+        uu = arr + oij;
+        vv = arr + j;
+
+        uuu = uu;
+        vvv = vv;
+
+        u = *uu;
+        v = *vv;
+        *uuu = u + v;
+        *vvv = tw * (u - v);
+
+        //__syncthreads();
+      }
+
+      s = 1;
+      shift_s = 1 << s;
+      j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+      tw = r_twiddles[j * (n_div_2_twiddles >> s)];
+      oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
+      j = oij + shift_s; // reuse for k
+
+      uu = arr + oij;
+      vv = arr + j;
+
+      uuu = uu;
+      vvv = vv;
+
+      u = *uu;
+      v = *vv;
+      *uuu = u + v;
+      *vvv = tw * (u - v);
+      // if (blockIdx.x != 0 && threadIdx.x != 0)
+      // {
+      //   tw = r_twiddles[blockIdx.x];
+      //   tw2 = tw * tw2;
+      //   tw = tw * r_twiddles[threadIdx.x * 2];
+      //   //   // tw = r_twiddles[blockIdx.x];
+      //   //   // tw2 = tw * r_twiddles[threadIdx.x * 2 + 1];
+      //   //   // tw = tw * r_twiddles[threadIdx.x * 2];
+
+      //   //   // tw = r_twiddles[blockIdx.x] * r_twiddles[threadIdx.x * 2];
+      //   //   // tw2 = r_twiddles[blockIdx.x] * r_twiddles[threadIdx.x * 2 + 1];
+      // }
+      ////////
+      s = 0;
+      shift_s = 1 << s;
+      j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+                             // tw = r_twiddles[j * (n_twiddles >> s)];         // TODO: it all can be constant here except oij
+
+      oij = (((l >> s) * (shift_s << 1)) & n_m1) + j; // but the simplification oij = (l >> 1) & n_m1
+                                                      // actually breaks correctness and decreases performance?!!
+      j = oij + shift_s;                              // reuse for k
+
+      uu = arr + oij;
+      vv = arr + j;
+
+      uuu = arr_g + oij;
+      vvv = arr_g + j;
+
+      u = *uu;
+      v = *vv;
+      // if (blockIdx.x == 0 || threadIdx.x == 0)
+      // {
+      *uuu = u + v;
+      *vvv = u - v; // s is 0 here - so twiddle factor is 1 - so no need to multiply
+      // }
+      // else
+      // {
+      //   *uuu = tw * (u + v);
+      //   *vvv = tw2 * (u - v); // s is 0 here - so twiddle factor is 1 - so no need to multiply
+      // }
+    }
   }
-
-  s = 1;
-  shift_s = 1 << s;
-  j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-  tw = r_twiddles[j * (n_div_2_twiddles >> s)];
-  oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
-  j = oij + shift_s; // reuse for k
-
-  uu = arr + oij;
-  vv = arr + j;
-
-  uuu = uu;
-  vvv = vv;
-
-  u = *uu;
-  v = *vv;
-  *uuu = u + v;
-  *vvv = tw * (u - v);
-
-  ////////
-  s = 0;
-  shift_s = 1 << s;
-  j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-  // tw = r_twiddles[j * (n_twiddles >> s)];         // TODO: it all can be constant here except oij
-  oij = (((l >> s) * (shift_s << 1)) & n_m1) + j; // but the simplification oij = (l >> 1) & n_m1
-                                                  // actually breaks correctness and decreases performance?!!
-  j = oij + shift_s;                              // reuse for k
-
-  uu = arr + oij;
-  vv = arr + j;
-
-  uuu = arr_g + oij;
-  vvv = arr_g + j;
-
-  u = *uu;
-  v = *vv;
-  *uuu = u + v;
-  *vvv = (u - v); // s is 0 here - so twiddle factor is 1 - so no need to multiply
-
-  // __syncthreads();
 }
 //************************************************************************************************
 

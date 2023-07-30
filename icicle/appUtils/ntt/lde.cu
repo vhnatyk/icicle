@@ -179,6 +179,7 @@ int evaluate_batch(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_siz
   uint32_t num_blocks2x = NUM_BLOCKS * 2; // TODO: ? uint32_t
 
   ntt_template_kernel_shared_rev<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_out, 1 << logn_shmem, d_domain, n / 2, total_tasks, 0, logn_shmem - 1, n_div_log2_blocks, num_blocks2x, (1 << logn_shmem) - 1);
+  // ntt_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_out, 1 << logn_shmem, d_domain, n, total_tasks, 0, logn_shmem, false);
 
   return 0;
 }
@@ -224,48 +225,26 @@ int ntt_batch(S *d_inout, S *d_twf, unsigned n, unsigned batch_size)
 }
 
 template <typename S>
-int bailey_ntt(S *d_inout, S *d_twf, unsigned n, unsigned batch_size)
+int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_size)
 {
+  uint32_t logn = uint32_t(log(n) / log(2));
+
   dim3 threads(TILE_DIM, BLOCK_ROWS);
   dim3 blocks(batch_size / TILE_DIM, n / TILE_DIM);
-  // printf("before transpose: %d %d \n", batch_size, n);
-
-  // S *trs = (S *)malloc(sizeof(S) * n * batch_size);
-  // cudaMemcpy(trs, d_inout, sizeof(S) * n * batch_size, cudaMemcpyDeviceToHost);
-
-  // 0,4,8,12,
-  // 1,5,9,13,
-  // 2,6,10,14,
-  // 3,7,11,15,
-  // S n0 = d_inout[0];
-  // S n3 = d_inout[n - 1];
-  // S n12 = d_inout[n * (n - 1)];
-  // S n15 = d_inout[n * n - 1];
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  // S *trs2 = (S *)malloc(sizeof(S) * n * batch_size);
-  // cudaMemcpy(trs2, d_inout, sizeof(S) * n * batch_size, cudaMemcpyDeviceToHost);
-
-  // assert(trs[0] == trs2[0]);
-  // printf("after n0 \n");
-  // assert(trs[n - 1] == trs2[n * (n - 1)]);
-  // printf("after n12 \n");
-  // assert(trs[n * (n - 1)] == trs2[n - 1]);
-  // printf("after n3 \n");
-  // assert(trs[n * n - 1] == trs2[n * n - 1]);
-
-  // printf("after transpose: %d %d \n", batch_size, n);
   ntt_batch(d_inout, d_twf, n, batch_size);
+  reverse_order_batch(d_inout, n, logn, batch_size);
 
-  batch_vector_mult(d_twf, d_inout, n, batch_size);
-  // printf("vector mult \n");
+  batch_mul_tw_ij<<<batch_size, n>>>(d_inout, d_full_twf, n, batch_size);
 
-  ntt_batch(d_inout, d_twf, n, batch_size);
-
-  // printf("before transpose 2\n");
   transpose<<<blocks, threads>>>(d_inout);
-  // printf("after transpose 2\n");
+
+  ntt_batch(d_inout, d_twf, n, batch_size);
+  reverse_order_batch(d_inout, n, logn, batch_size);
+
+  transpose<<<blocks, threads>>>(d_inout);
 
   return 0;
 }

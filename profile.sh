@@ -21,14 +21,14 @@ if [[ $output =~ $regex ]]; then
     echo "$descr : $time us"
     
     # If the time is greater than 1000, we print a warning
-    if (( $(echo "$time > 2800" | bc -l) )); then
+    if (( $(echo "$time > 16800" | bc -l) )); then
         echo "Warning: High time value!"
         # You can launch another command here
         # For example, echo "Launching another command..."
         # ./another-command.sh
     else
         echo "profiling..."
-        /tmp/var/target/linux-desktop-glibc_2_11_3-x64/ncu --config-file off --export $rep_name --force-overwrite --kernel-id ::regex:'^(?!twiddle)': --launch-count 3 --section-folder /tmp/var/sections --set full --sampling-max-passes 1 /home/vlad/Projects/icicle_clean/icicle/target/release/icicle-utils
+        ncu --config-file off --export $rep_name --force-overwrite --kernel-id ::regex:'^(?!twiddle)': --launch-count 3 --set full --sampling-max-passes 1 /home/vlad/Projects/icicle_clean/icicle/target/release/icicle-utils
     fi
 else
     echo "No time value found in output."
