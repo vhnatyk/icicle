@@ -1,37 +1,13 @@
+#pragma once
 #ifndef LDE
 #define LDE
 #include <cuda.h>
 #include "ntt.cuh"
 #include "lde.cuh"
 #include "../vector_manipulation/ve_mod_mult.cuh"
+#include "../../utils/tr.cuh"
+#include <assert.h>
 
-template < typename E, bool SUB > __global__ void add_sub_array(E* res, E* in1, E* in2, uint32_t n) {
-    int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (tid < n) {
-      res[tid] = SUB ? in1[tid] - in2[tid] : in1[tid] + in2[tid];
-    }
-  }
-  
-  template <typename E>
-  int sub_polys(E* d_out, E* d_in1, E* d_in2, unsigned n, cudaStream_t stream) {
-    uint32_t NUM_THREADS = MAX_THREADS_BATCH;
-    uint32_t NUM_BLOCKS = (n + NUM_THREADS - 1) / NUM_THREADS;
-  
-    add_sub_array <E, true> <<<NUM_BLOCKS, NUM_THREADS, 0, stream>>>(d_out, d_in1, d_in2, n);
-  
-    return 0;
-  }
-  
-  template <typename E>
-  int add_polys(E* d_out, E* d_in1, E* d_in2, unsigned n, cudaStream_t stream) {
-    uint32_t NUM_THREADS = MAX_THREADS_BATCH;
-    uint32_t NUM_BLOCKS = (n + NUM_THREADS - 1) / NUM_THREADS;
-  
-    add_sub_array <E, false> <<<NUM_BLOCKS, NUM_THREADS, 0, stream>>>(d_out, d_in1, d_in2, n);
-  
-    return 0;
-  }
-  
 /**
  * Interpolate a batch of polynomials from their evaluations on the same subgroup.
  * Note: this function does not preform any bit-reverse permutations on its inputs or outputs.
@@ -41,9 +17,28 @@ template < typename E, bool SUB > __global__ void add_sub_array(E* res, E* in1, 
  * @param n Length of `d_domain` array, also equal to the number of evaluations of each polynomial.
  * @param batch_size The size of the batch; the length of `d_evaluations` is `n` * `batch_size`.
  */
-template <typename E, typename S> int interpolate_batch(E * d_out, E * d_evaluations, S * d_domain, unsigned n, unsigned batch_size, bool coset, S * coset_powers, cudaStream_t stream) {
-  cudaMemcpyAsync(d_out, d_evaluations, sizeof(E) * n * batch_size, cudaMemcpyDeviceToDevice, stream);
-  ntt_inplace_batch_template(d_out, d_domain, n, batch_size, true, coset, coset_powers, stream, true);
+template <typename E, typename S>
+int interpolate_batch(E *d_out, E *d_evaluations, S *d_domain, unsigned n, unsigned batch_size, cudaStream_t stream = 0)
+{
+  uint32_t logn = uint32_t(log(n) / log(2));
+  cudaMemcpy(d_out, d_evaluations, sizeof(E) * n * batch_size, cudaMemcpyDeviceToDevice);
+
+  int NUM_THREADS = min(n / 2, MAX_THREADS_BATCH);
+  int chunks = max(int((n / 2) / NUM_THREADS), 1);
+  int total_tasks = batch_size * chunks;
+  int NUM_BLOCKS = total_tasks;
+  int max_sharedmem = 512 * sizeof(E);
+  int shared_mem = 2 * NUM_THREADS * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
+  uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
+  ntt_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, stream>>>(d_out, 1 << logn_shmem, d_domain, n, total_tasks, 0, logn_shmem, false);
+
+  for (uint32_t s = logn_shmem; s < logn; s++) // TODO: this loop also can be unrolled
+  {
+    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS, 0, stream>>>(d_out, n, d_domain, n, total_tasks, s, false);
+  }
+
+  NUM_BLOCKS = (n * batch_size + NUM_THREADS - 1) / NUM_THREADS;
+  template_normalize_kernel<<<NUM_BLOCKS, NUM_THREADS, 0, stream>>>(d_out, n * batch_size, S::inv_log_size(logn));
   return 0;
 }
 
@@ -55,14 +50,77 @@ template <typename E, typename S> int interpolate_batch(E * d_out, E * d_evaluat
  * @param d_domain Domain on which the polynomial is evaluated. Must be a subgroup.
  * @param n Length of `d_evaluations` and the size `d_domain` arrays (they should have equal length).
  */
-template <typename E, typename S> int interpolate(E * d_out, E * d_evaluations, S * d_domain, unsigned n, bool coset, S * coset_powers, cudaStream_t stream) {
-  return interpolate_batch <E, S> (d_out, d_evaluations, d_domain, n, 1, coset, coset_powers, stream);
+template <typename E, typename S>
+int interpolate(E *d_out, E *d_evaluations, S *d_domain, unsigned n, cudaStream_t stream = 0)
+{
+  return interpolate_batch<E, S>(d_out, d_evaluations, d_domain, n, 1, stream);
 }
 
-template < typename E > __global__ void fill_array(E * arr, E val, uint32_t n) {
+template <typename E>
+__global__ void fill_array(E *arr, E val, uint32_t n)
+{
   int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-  if (tid < n) {
+  if (tid < n)
+  {
     arr[tid] = val;
+  }
+}
+
+template <typename E, typename S>
+__global__ void bench_mul_kernel(E a, S b, E *r, size_t n, size_t samples)
+{
+  // S f1 = group_gen;
+  // S f2 = f1 * group_gen_inverse;
+
+  int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  if (tid < n)
+  {
+    // int scalar_id = tid % n_scalars;
+    // element_vec[tid] = scalar_vec[scalar_id] * element_vec[tid];
+
+    S t;
+
+    for (int s2 = 0; s2 < samples; s2++)
+    {
+      t = t * b;
+    }
+
+    t = a * t;
+
+    if (tid == 0)
+    {
+      *r = t;
+    }
+  }
+}
+
+template <typename E, typename S>
+__global__ void bench_add_kernel(E a, S b, E *r, size_t n, size_t samples)
+{
+  // S f1 = group_gen;
+  // S f2 = f1 * group_gen_inverse;
+
+  int tid = blockDim.x * blockIdx.x + threadIdx.x;
+  if (tid < n)
+  {
+    // int scalar_id = tid % n_scalars;
+    // element_vec[tid] = scalar_vec[scalar_id] * element_vec[tid];
+
+    S t;
+    // for (int s1 = 0; s1 < samples; s1++)
+    // {
+    for (int s2 = 0; s2 < samples; s2++)
+    {
+      t = t + b;
+    }
+    // }
+
+    t = a + t;
+
+    if (tid == 0)
+    {
+      *r = t;
+    }
   }
 }
 
@@ -78,33 +136,119 @@ template < typename E > __global__ void fill_array(E * arr, E val, uint32_t n) {
  * @param coset_powers If `coset` is true, a list of powers `[1, u, u^2, ..., u^{n-1}]` where `u` is the generator of the coset.
  */
 template <typename E, typename S>
-int evaluate_batch(E * d_out, E * d_coefficients, S * d_domain, unsigned domain_size, unsigned n, unsigned batch_size, bool coset, S * coset_powers, cudaStream_t stream) {
+int evaluate_batch(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_size, unsigned n, unsigned batch_size, bool coset, S *coset_powers, cudaStream_t stream)
+{
   uint32_t logn = uint32_t(log(domain_size) / log(2));
-  if (domain_size > n) {
+  if (domain_size > n)
+  {
     // allocate and initialize an array of stream handles to parallelize data copying across batches
-    cudaStream_t *memcpy_streams = (cudaStream_t *) malloc(batch_size * sizeof(cudaStream_t));
-    for (unsigned i = 0; i < batch_size; i++)
+    cudaStream_t *memcpy_streams = (cudaStream_t *)malloc(batch_size * sizeof(cudaStream_t));
+    for (int i = 0; i < batch_size; i++)
     {
       cudaStreamCreate(&(memcpy_streams[i]));
 
       cudaMemcpyAsync(&d_out[i * domain_size], &d_coefficients[i * n], n * sizeof(E), cudaMemcpyDeviceToDevice, memcpy_streams[i]);
-      uint32_t NUM_THREADS = MAX_THREADS_BATCH;
-      uint32_t NUM_BLOCKS = (domain_size - n + NUM_THREADS - 1) / NUM_THREADS;
-      fill_array <E> <<<NUM_BLOCKS, NUM_THREADS, 0, memcpy_streams[i]>>> (&d_out[i * domain_size + n], E::zero(), domain_size - n);
+      int NUM_THREADS = MAX_THREADS_BATCH;
+      int NUM_BLOCKS = (domain_size - n + NUM_THREADS - 1) / NUM_THREADS;
+      fill_array<E><<<NUM_BLOCKS, NUM_THREADS, 0, memcpy_streams[i]>>>(&d_out[i * domain_size + n], E::zero(), domain_size - n);
 
       cudaStreamSynchronize(memcpy_streams[i]);
       cudaStreamDestroy(memcpy_streams[i]);
     }
-  } else
-    cudaMemcpyAsync(d_out, d_coefficients, sizeof(E) * domain_size * batch_size, cudaMemcpyDeviceToDevice, stream);
+  }
+  else
+    cudaMemcpy(d_out, d_coefficients, sizeof(E) * domain_size * batch_size, cudaMemcpyDeviceToDevice);
 
   if (coset)
     batch_vector_mult(coset_powers, d_out, domain_size, batch_size, stream);
-  
-  S* _null = nullptr;
-  ntt_inplace_batch_template(d_out, d_domain, domain_size, batch_size, false, false, _null, stream, true);
+
+  int NUM_THREADS = min(domain_size / 2, MAX_THREADS_BATCH);
+  int chunks = max(int((domain_size / 2) / NUM_THREADS), 1);
+  int total_tasks = batch_size * chunks;
+  int NUM_BLOCKS = total_tasks;
+  int max_sharedmem = 512 * sizeof(E);
+  int shared_mem = (2 * NUM_THREADS) * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
+  uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
+  for (uint32_t s = logn - 1; s >= logn_shmem; s--) // TODO: this loop also can be unrolled
+  {
+    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s, true);
+  }
+
+  uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
+  uint32_t n_div_log2_blocks = (((1 << logn_shmem) >> (log2_num_blocks + 1)) - 1);
+  uint32_t num_blocks2x = NUM_BLOCKS * 2; // TODO: ? uint32_t
+
+  ntt_template_kernel_shared_rev<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_out, 1 << logn_shmem, d_domain, n / 2, total_tasks, 0, logn_shmem - 1, n_div_log2_blocks, num_blocks2x, (1 << logn_shmem) - 1);
+  // ntt_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_out, 1 << logn_shmem, d_domain, n, total_tasks, 0, logn_shmem, false);
+
   return 0;
 }
+
+///
+/**
+ * Evaluate a batch of polynomials on the same coset.
+ * @param d_inout Input array of type E (elements)
+ * @param d_twf Twiddle factors of type S (scalars) array allocated on the device memory (must be a power of 2).
+ * @param n The size of single input.
+ * @param batch_size The size of the batch; the length of `d_inout` is `n` * `batch_size`.
+ */
+template <typename E, typename S>
+int ntt_batch_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
+{
+  uint32_t logn = uint32_t(log(n) / log(2));
+
+  int NUM_THREADS = min(n / 2, MAX_THREADS_BATCH);
+  int chunks = max(int((n / 2) / NUM_THREADS), 1);
+  int total_tasks = batch_size * chunks;
+  int NUM_BLOCKS = total_tasks;
+  int max_sharedmem = 512 * sizeof(E);
+  int shared_mem = (2 * NUM_THREADS) * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
+  uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
+  for (uint32_t s = logn - 1; s >= logn_shmem; s--) // TODO: this loop also can be unrolled
+  {
+    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s, true);
+  }
+
+  uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
+  uint32_t n_div_log2_blocks = (((1 << logn_shmem) >> (log2_num_blocks + 1)) - 1);
+  uint32_t num_blocks2x = NUM_BLOCKS * 2; // TODO: ? uint32_t
+
+  ntt_template_kernel_shared_rev<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, n / 2, total_tasks, 0, logn_shmem - 1, n_div_log2_blocks, num_blocks2x, (1 << logn_shmem) - 1);
+
+  return 0;
+}
+
+template <typename S>
+int ntt_batch(S *d_inout, S *d_twf, unsigned n, unsigned batch_size)
+{
+  return ntt_batch_template(d_inout, d_twf, n, batch_size);
+}
+
+template <typename S>
+int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_size)
+{
+  uint32_t logn = uint32_t(log(n) / log(2));
+
+  dim3 threads(TILE_DIM, BLOCK_ROWS);
+  dim3 blocks(batch_size / TILE_DIM, n / TILE_DIM);
+
+  transpose<<<blocks, threads>>>(d_inout);
+
+  ntt_batch(d_inout, d_twf, n, batch_size);
+  reverse_order_batch(d_inout, n, logn, batch_size);
+
+  batch_mul_tw_ij<<<batch_size, n>>>(d_inout, d_full_twf, n, batch_size);
+
+  transpose<<<blocks, threads>>>(d_inout);
+
+  ntt_batch(d_inout, d_twf, n, batch_size);
+  reverse_order_batch(d_inout, n, logn, batch_size);
+
+  transpose<<<blocks, threads>>>(d_inout);
+
+  return 0;
+}
+///
 
 /**
  * Evaluate a polynomial on a coset.
@@ -117,93 +261,90 @@ int evaluate_batch(E * d_out, E * d_coefficients, S * d_domain, unsigned domain_
  * @param coset The flag that indicates whether to evaluate on a coset. If false, evaluate on a subgroup `d_domain`.
  * @param coset_powers If `coset` is true, a list of powers `[1, u, u^2, ..., u^{n-1}]` where `u` is the generator of the coset.
  */
-template <typename E, typename S> 
-int evaluate(E * d_out, E * d_coefficients, S * d_domain, unsigned domain_size, unsigned n, bool coset, S * coset_powers, cudaStream_t stream) {
-  return evaluate_batch <E, S> (d_out, d_coefficients, d_domain, domain_size, n, 1, coset, coset_powers, stream);
+template <typename E, typename S>
+int evaluate(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_size, unsigned n, bool coset, S *coset_powers, cudaStream_t stream)
+{
+  return evaluate_batch<E, S>(d_out, d_coefficients, d_domain, domain_size, n, 1, coset, coset_powers, stream);
 }
 
-template <typename S> 
-int interpolate_scalars(S* d_out, S* d_evaluations, S* d_domain, unsigned n, cudaStream_t stream) {
-  S* _null = nullptr;
-  return interpolate(d_out, d_evaluations, d_domain, n, false, _null, stream);
+template <typename S>
+int interpolate_scalars(S *d_out, S *d_evaluations, S *d_domain, unsigned n)
+{
+  return interpolate(d_out, d_evaluations, d_domain, n);
 }
 
-template <typename S> 
-int interpolate_scalars_batch(S* d_out, S* d_evaluations, S* d_domain, unsigned n, unsigned batch_size, cudaStream_t stream) {
-  S* _null = nullptr;
-  return interpolate_batch(d_out, d_evaluations, d_domain, n, batch_size, false, _null, stream);
+template <typename S>
+int interpolate_scalars_batch(S *d_out, S *d_evaluations, S *d_domain, unsigned n, unsigned batch_size)
+{
+  return interpolate_batch(d_out, d_evaluations, d_domain, n, batch_size);
 }
 
-template <typename E, typename S> 
-int interpolate_points(E* d_out, E* d_evaluations, S* d_domain, unsigned n, cudaStream_t stream) {
-  S* _null = nullptr;
-  return interpolate(d_out, d_evaluations, d_domain, n, false, _null, stream);
+template <typename E, typename S>
+int interpolate_points(E *d_out, E *d_evaluations, S *d_domain, unsigned n)
+{
+  return interpolate(d_out, d_evaluations, d_domain, n);
 }
 
-template <typename E, typename S> 
-int interpolate_points_batch(E* d_out, E* d_evaluations, S* d_domain, unsigned n, unsigned batch_size, cudaStream_t stream) {
-  S* _null = nullptr;
-  return interpolate_batch(d_out, d_evaluations, d_domain, n, batch_size, false, _null, stream);
+template <typename E, typename S>
+int interpolate_points_batch(E *d_out, E *d_evaluations, S *d_domain, unsigned n, unsigned batch_size)
+{
+  return interpolate_batch(d_out, d_evaluations, d_domain, n, batch_size);
 }
 
-template <typename S> 
-int evaluate_scalars(S* d_out, S* d_coefficients, S* d_domain, unsigned domain_size, unsigned n, cudaStream_t stream) {
-  S* _null = nullptr;
-  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, false, _null, stream);
+template <typename S>
+int evaluate_scalars(S *d_out, S *d_coefficients, S *d_domain, unsigned domain_size, unsigned n)
+{
+  S *_null = nullptr;
+  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, false, _null);
 }
 
-template <typename S> 
-int evaluate_scalars_batch(S* d_out, S* d_coefficients, S* d_domain, unsigned domain_size, unsigned n, unsigned batch_size, cudaStream_t stream) {
-  S* _null = nullptr;
-  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, false, _null, stream);
+template <typename S>
+int evaluate_scalars_batch(S *d_out, S *d_coefficients, S *d_domain, unsigned domain_size, unsigned n, unsigned batch_size)
+{
+  S *_null = nullptr;
+  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, false, _null);
 }
 
-template <typename E, typename S> 
-int evaluate_points(E* d_out, E* d_coefficients, S* d_domain, unsigned domain_size, unsigned n, cudaStream_t stream) {
-  S* _null = nullptr;
-  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, false, _null, stream);
+template <typename E, typename S>
+int evaluate_points(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_size, unsigned n)
+{
+  S *_null = nullptr;
+  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, false, _null);
 }
 
-template <typename E, typename S> 
-int evaluate_points_batch(E* d_out, E* d_coefficients, S* d_domain, 
-                          unsigned domain_size, unsigned n, unsigned batch_size, cudaStream_t stream) {
-  S* _null = nullptr;
-  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, false, _null, stream);
+template <typename E, typename S>
+int evaluate_points_batch(E *d_out, E *d_coefficients, S *d_domain,
+                          unsigned domain_size, unsigned n, unsigned batch_size)
+{
+  S *_null = nullptr;
+  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, false, _null);
 }
 
-template <typename S> 
-int interpolate_scalars_on_coset(S* d_out, S* d_evaluations, S* d_domain,
-                                 unsigned n, S* coset_powers, cudaStream_t stream) {
-  return interpolate(d_out, d_evaluations, d_domain, n, true, coset_powers, stream);
+template <typename S>
+int evaluate_scalars_on_coset(S *d_out, S *d_coefficients, S *d_domain,
+                              unsigned domain_size, unsigned n, S *coset_powers)
+{
+  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, true, coset_powers);
 }
 
-template <typename S> 
-int interpolate_scalars_on_coset_batch(S* d_out, S* d_evaluations, S* d_domain,
-                                       unsigned n, unsigned batch_size, S* coset_powers, cudaStream_t stream) {
-  return interpolate_batch(d_out, d_evaluations, d_domain, n, batch_size, true, coset_powers, stream);
+template <typename E, typename S>
+int evaluate_scalars_on_coset_batch(S *d_out, S *d_coefficients, S *d_domain, unsigned domain_size,
+                                    unsigned n, unsigned batch_size, S *coset_powers)
+{
+  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, true, coset_powers);
 }
 
-template <typename S> 
-int evaluate_scalars_on_coset(S* d_out, S* d_coefficients, S* d_domain, 
-                              unsigned domain_size, unsigned n, S* coset_powers, cudaStream_t stream) {
-  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, true, coset_powers, stream);
+template <typename E, typename S>
+int evaluate_points_on_coset(E *d_out, E *d_coefficients, S *d_domain,
+                             unsigned domain_size, unsigned n, S *coset_powers)
+{
+  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, true, coset_powers);
 }
 
-template <typename E, typename S> 
-int evaluate_scalars_on_coset_batch(S* d_out, S* d_coefficients, S* d_domain, unsigned domain_size, 
-                                    unsigned n, unsigned batch_size, S* coset_powers, cudaStream_t stream) {
-  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, true, coset_powers, stream);
-}
-
-template <typename E, typename S> 
-int evaluate_points_on_coset(E* d_out, E* d_coefficients, S* d_domain, 
-                             unsigned domain_size, unsigned n, S* coset_powers, cudaStream_t stream) {
-  return evaluate(d_out, d_coefficients, d_domain, domain_size, n, true, coset_powers, stream);
-}
-
-template <typename E, typename S> 
-int evaluate_points_on_coset_batch(E* d_out, E* d_coefficients, S* d_domain, unsigned domain_size,
-                                   unsigned n, unsigned batch_size, S* coset_powers, cudaStream_t stream) {
-  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, true, coset_powers, stream);
+template <typename E, typename S>
+int evaluate_points_on_coset_batch(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_size,
+                                   unsigned n, unsigned batch_size, S *coset_powers)
+{
+  return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, true, coset_powers);
 }
 #endif

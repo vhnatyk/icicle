@@ -27,7 +27,7 @@ extern "C" BLS12_381::scalar_t *build_domain_cuda_bls12_381(uint32_t domain_size
     }
 }
 
-extern "C" int ntt_cuda_bls12_381(BLS12_381::scalar_t *arr, uint32_t n, bool inverse, Decimation decimation, size_t device_id = 0, cudaStream_t stream = 0)
+extern "C" int ntt_cuda_bls12_381(BLS12_381::scalar_t *arr, uint32_t n, bool inverse, size_t device_id = 0, cudaStream_t stream = 0)
 {
     try
     {
@@ -41,7 +41,7 @@ extern "C" int ntt_cuda_bls12_381(BLS12_381::scalar_t *arr, uint32_t n, bool inv
     }
 }
 
-extern "C" int ecntt_cuda_bls12_381(BLS12_381::projective_t *arr, uint32_t n, bool inverse, Decimation decimation, size_t device_id = 0, cudaStream_t stream = 0)
+extern "C" int ecntt_cuda_bls12_381(BLS12_381::projective_t *arr, uint32_t n, bool inverse, size_t device_id = 0, cudaStream_t stream = 0)
 {
     try
     {
@@ -137,12 +137,12 @@ extern "C" int interpolate_scalars_batch_cuda_bls12_381(BLS12_381::scalar_t *d_o
 // }
 
 extern "C" int evaluate_scalars_cuda_bls12_381(BLS12_381::scalar_t *d_out, BLS12_381::scalar_t *d_coefficients, BLS12_381::scalar_t *d_domain,
-                                               unsigned domain_size, unsigned n, unsigned device_id = 0)
+                                               unsigned domain_size, unsigned n, unsigned device_id = 0, cudaStream_t stream = 0)
 {
     try
     {
         BLS12_381::scalar_t *_null = nullptr;
-        return evaluate(d_out, d_coefficients, d_domain, domain_size, n, false, _null);
+        return evaluate(d_out, d_coefficients, d_domain, domain_size, n, false, _null, stream);
     }
     catch (const std::runtime_error &ex)
     {
@@ -152,12 +152,12 @@ extern "C" int evaluate_scalars_cuda_bls12_381(BLS12_381::scalar_t *d_out, BLS12
 }
 
 extern "C" int evaluate_scalars_batch_cuda_bls12_381(BLS12_381::scalar_t *d_out, BLS12_381::scalar_t *d_coefficients, BLS12_381::scalar_t *d_domain, unsigned domain_size,
-                                                     unsigned n, unsigned batch_size, size_t device_id = 0)
+                                                     unsigned n, unsigned batch_size, size_t device_id = 0, cudaStream_t stream = 0)
 {
     try
     {
         BLS12_381::scalar_t *_null = nullptr;
-        return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, false, _null);
+        return evaluate_batch(d_out, d_coefficients, d_domain, domain_size, n, batch_size, false, _null, stream);
     }
     catch (const std::runtime_error &ex)
     {

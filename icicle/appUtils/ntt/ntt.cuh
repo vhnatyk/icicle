@@ -112,13 +112,13 @@ __global__ void reverse_order_kernel(T *arr, T *arr_reversed, uint32_t n, uint32
  * @param batch_size the size of the batch.
  */
 template <typename T>
-void reverse_order_batch(T *arr, uint32_t n, uint32_t logn, uint32_t batch_size)
+void reverse_order_batch(T *arr, uint32_t n, uint32_t logn, uint32_t batch_size, cudaStream_t stream = 0)
 {
   T *arr_reversed;
   cudaMalloc(&arr_reversed, n * batch_size * sizeof(T));
   int number_of_threads = MAX_THREADS_BATCH;
   int number_of_blocks = (n * batch_size + number_of_threads - 1) / number_of_threads;
-  reverse_order_kernel<<<number_of_blocks, number_of_threads>>>(arr, arr_reversed, n, logn, batch_size);
+  reverse_order_kernel<<<number_of_blocks, number_of_threads, 0, stream>>>(arr, arr_reversed, n, logn, batch_size);
   cudaMemcpy(arr, arr_reversed, n * batch_size * sizeof(T), cudaMemcpyDeviceToDevice);
   cudaFree(arr_reversed);
 }
