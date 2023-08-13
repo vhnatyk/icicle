@@ -845,7 +845,7 @@ pub(crate) mod tests_CURVE_NAME_L {
         points_ga
     }
 
-    fn ecntt_arc_naive(
+    fn ecntt_ark_naive(
         points: &Vec<G1Projective>,
         size: usize,
         inverse: bool,

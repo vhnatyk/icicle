@@ -6,71 +6,65 @@
 
 
 #define MAX_THREADS_PER_BLOCK 256
-
 /**
  * Multiply the elements of an input array by a scalar in-place.
  * @param arr input array.
  * @param n size of arr.
  * @param n_inv scalar of type S (scalar).
  */
- template < typename E, typename S > __global__ void template_normalize_kernel(E * arr, uint32_t n, S scalar) {
-    int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (tid < n) {
-      arr[tid] = scalar * arr[tid];
-    }
+template <typename E, typename S>
+__global__ void template_normalize_kernel(E *arr, uint32_t n, S scalar)
+{
+  int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+  if (tid < n)
+  {
+    arr[tid] = scalar * arr[tid];
   }
+}
 
 // TODO: headers for prototypes and .c .cpp .cu files for implementations
-template <typename E, typename S>
+template <typename E, typename S, int N>
 __global__ void vectorModMult(S *scalar_vec, E *element_vec, E *result, size_t n_elments)
 {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < n_elments)
     {
-        result[tid] = scalar_vec[tid] * element_vec[tid];
+        const S s = scalar_vec[tid];
+        E e = element_vec[tid];
+        #pragma unroll
+        for (int i = 0; i < N; i++)
+            e = s * e;
+        result[tid] = e;
     }
 }
 
-template <typename E, typename S>
-int vector_mod_mult(S *vec_a, E *vec_b, E *result, size_t n_elments, cudaStream_t stream) // TODO: in place so no need for third result vector
+template <typename E, typename S, int N>
+int vector_mod_mult(S *vec_a, E *vec_b, E *result, size_t n_elments) // TODO: in place so no need for third result vector
 {
     // Set the grid and block dimensions
     int num_blocks = (int)ceil((float)n_elments / MAX_THREADS_PER_BLOCK);
     int threads_per_block = MAX_THREADS_PER_BLOCK;
 
-    // Allocate memory on the device for the input vectors, the output vector, and the modulus
-    S *d_vec_a;
-    E *d_vec_b, *d_result;
-    cudaMallocAsync(&d_vec_a, n_elments * sizeof(S), stream);
-    cudaMallocAsync(&d_vec_b, n_elments * sizeof(E), stream);
-    cudaMallocAsync(&d_result, n_elments * sizeof(E), stream);
+    // // Allocate memory on the device for the input vectors, the output vector, and the modulus
+    // S *d_vec_a;
+    // E *d_vec_b, *d_result;
+    // cudaMalloc(&d_vec_a, n_elments * sizeof(S));
+    // cudaMalloc(&d_vec_b, n_elments * sizeof(E));
+    // cudaMalloc(&d_result, n_elments * sizeof(E));
 
-    // Copy the input vectors and the modulus from the host to the device
-    cudaMemcpyAsync(d_vec_a, vec_a, n_elments * sizeof(S), cudaMemcpyHostToDevice, stream);
-    cudaMemcpyAsync(d_vec_b, vec_b, n_elments * sizeof(E), cudaMemcpyHostToDevice, stream);
-
-    // Call the kernel to perform element-wise modular multiplication
-    vectorModMult<<<num_blocks, threads_per_block, 0, stream>>>(d_vec_a, d_vec_b, d_result, n_elments);
-
-    cudaMemcpyAsync(result, d_result, n_elments * sizeof(E), cudaMemcpyDeviceToHost, stream);
-
-    cudaFreeAsync(d_vec_a, stream);
-    cudaFreeAsync(d_vec_b, stream);
-    cudaFreeAsync(d_result, stream);
-
-    cudaStreamSynchronize(stream);
-    return 0;
-}
-
-template <typename E, typename S>
-int vector_mod_mult_device(S *d_vec_a, E *d_vec_b, E *d_result, size_t n_elments) // TODO: in place so no need for third result vector
-{
-    // Set the grid and block dimensions
-    int num_blocks = (int)ceil((float)n_elments / MAX_THREADS_PER_BLOCK);
-    int threads_per_block = MAX_THREADS_PER_BLOCK;
+    // // Copy the input vectors and the modulus from the host to the device
+    // cudaMemcpy(d_vec_a, vec_a, n_elments * sizeof(S), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_vec_b, vec_b, n_elments * sizeof(E), cudaMemcpyHostToDevice);
 
     // Call the kernel to perform element-wise modular multiplication
-    vectorModMult<<<num_blocks, threads_per_block>>>(d_vec_a, d_vec_b, d_result, n_elments);
+    vectorModMult<E, S, N><<<num_blocks, threads_per_block>>>(vec_a, vec_b, result, n_elments);
+
+    // cudaMemcpy(result, d_result, n_elments * sizeof(E), cudaMemcpyDeviceToHost);
+
+    // cudaFree(d_vec_a);
+    // cudaFree(d_vec_b);
+    // cudaFree(d_result);
+
     return 0;
 }
 

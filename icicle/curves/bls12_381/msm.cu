@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _BLS12_381_MSM
 #define _BLS12_381_MSM
 #include "../../appUtils/msm/msm.cu"

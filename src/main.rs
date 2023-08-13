@@ -1,10 +1,7 @@
-extern crate criterion;
+use std::time::{Duration, Instant};
 
-use std::os::unix::raw::dev_t;
-
-use criterion::{
-    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
-};
+use ark_std::{end_timer, start_timer};
+use nvtx::*;
 
 use icicle_utils::{
     curves::bls12_381::{Point_BLS12_381, ScalarField_BLS12_381},
@@ -16,7 +13,6 @@ use icicle_utils::{
     },
 };
 use rustacuda::prelude::DeviceBuffer;
-type BenchGroup<'a> = BenchmarkGroup<'a, WallTime>;
 
 const LOG_NTT_SIZES: [usize; 1] = [10]; //, 23, 9, 10, 11, 12, 18];
                                         // const BATCH_SIZES: [usize; 2] = [1<<17, 256];
@@ -25,11 +21,10 @@ const BATCH_SIZES: [usize; 1] = [1 << 10];
 const MAX_POINTS_LOG2: usize = 18;
 const MAX_SCALARS_LOG2: usize = 25;
 
-fn bench_ntt(c: &mut Criterion) {
+fn bench_ntt() {
     for log_ntt_size in LOG_NTT_SIZES {
         for batch_size in BATCH_SIZES {
             let ntt_size = 1 << log_ntt_size;
-            let group = &mut c.benchmark_group("NTT");
 
             fn fast_ntt(
                 d_evaluations: &mut DeviceBuffer<ScalarField_BLS12_381>,
@@ -109,7 +104,6 @@ fn bench_ntt(c: &mut Criterion) {
                 log_ntt_size,
                 set_up_ntt_scalars_bls12_381,
                 fast_ntt,
-                group,
                 "fast NTT",
                 false,
                 100,
@@ -122,7 +116,6 @@ fn bench_ntt(c: &mut Criterion) {
                 log_ntt_size * 2,
                 set_up_bailey_scalars_bls12_381,
                 bailey_ntt,
-                group,
                 "Bailey NTT",
                 false,
                 100,
@@ -135,7 +128,6 @@ fn bench_ntt(c: &mut Criterion) {
             //     log_ntt_size,
             //     set_up_ntt_scalars_bls12_381,
             //     interpolate_scalars_batch_bls12_381,
-            //     group,
             //     "iNTT",
             //     true,
             //     100,
@@ -165,11 +157,21 @@ fn bench_template<E, S>(
         d_domain_full: &mut DeviceBuffer<S>,
         batch_size: usize,
     ) -> DeviceBuffer<E>,
-    g: &mut BenchmarkGroup<WallTime>,
     id: &str,
     inverse: bool,
     samples: usize,
 ) -> Option<(Vec<E>, Option<DeviceBuffer<E>>)> {
+    let count = ntt_size * batch_size;
+
+    let bench_id = format!("{} of size 2^{} in batch {}", id, log_ntt_size, batch_size);
+
+    if count > 1 << log_max_size {
+        println!("Bench size exceeded: {}", bench_id);
+        return None;
+    }
+
+    println!("{}", bench_id);
+
     let count = ntt_size * batch_size;
 
     let bench_id = format!("{} of size 2^{} in batch {}", id, log_ntt_size, batch_size);
@@ -186,45 +188,50 @@ fn bench_template<E, S>(
     //let first = bench_fn(&mut d_evals, &mut d_domain, d_domain_full, batch_size);
     let mut d_domain_full = d_domain_full
         .unwrap_or_else(|| unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() });
-    g.sample_size(samples).bench_function(&bench_id, |b| {
-        b.iter(|| bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size))
-    });
+
+    range_push!("{}", bench_id);
+    let _first = bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size);
+    //start_timer!(bench_id);
+    let start = Instant::now();
+    for _ in 0..samples {
+        bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size);
+    }
+    //end_timer!(bench_id);
+    let elapsed = start.elapsed();
+    println!(
+        "{} {:0?} us x {} = {:?}",
+        bench_id,
+        elapsed.as_micros() as f32 / (samples as f32),
+        samples,
+        elapsed
+    );
+    range_pop!();
 
     Some((input, None))
 }
 
-fn bench_fr_arith(c: &mut Criterion) {
+fn arith_run() {
     use std::str::FromStr;
     let bench_npow = std::env::var("ARITH_BENCH_NPOW").unwrap_or("8".to_string());
     let npoints_npow = usize::from_str(&bench_npow).unwrap();
-
-    let mut group: BenchGroup = c.benchmark_group("FR CUDA");
-    group.sample_size(10);
 
     for blocks in [128, 256, 1024, 2048] {
         for threads in [128] {
             for lg_domain_size in 2..=npoints_npow {
                 let domain_size = 10_usize.pow(lg_domain_size as u32) as usize;
-
                 let name = format!("FR ADD 10**{}*{}*{}", lg_domain_size, blocks, threads);
-                group.bench_function(name, |b| {
-                    b.iter(|| {
-                        bench_add_fr(domain_size, blocks, threads);
-                    })
-                });
+                println!("{}", name);
+                bench_add_fr(domain_size, blocks, threads);
 
                 let name = format!("FR MUL 10**{}*{}*{}", lg_domain_size, blocks, threads);
-                group.bench_function(name, |b| {
-                    b.iter(|| {
-                        bench_mul_fr(domain_size, blocks, threads);
-                    })
-                });
+                println!("{}", name);
+                bench_mul_fr(domain_size, blocks, threads);
             }
         }
     }
-    group.finish();
 }
 
-criterion_group!(ntt_benches, bench_ntt, bench_fr_arith);
-criterion_main!(ntt_benches);
-
+fn main() {
+    //arith_run();
+    bench_ntt();
+}

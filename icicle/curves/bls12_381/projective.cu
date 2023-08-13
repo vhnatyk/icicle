@@ -1,3 +1,4 @@
+#pragma once
 #include <cuda.h>
 #include "curve_config.cuh"
 #include "../../primitives/projective.cuh"
