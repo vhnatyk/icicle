@@ -109,17 +109,17 @@ fn bench_ntt() {
                 100,
             );
 
-            bench_template(
-                MAX_SCALARS_LOG2,
-                ntt_size * batch_size,
-                1,
-                log_ntt_size * 2,
-                set_up_bailey_scalars_bls12_381,
-                bailey_ntt,
-                "Bailey NTT",
-                false,
-                100,
-            );
+            // bench_template(
+            //     MAX_SCALARS_LOG2,
+            //     ntt_size * batch_size,
+            //     1,
+            //     log_ntt_size * 2,
+            //     set_up_bailey_scalars_bls12_381,
+            //     bailey_ntt,
+            //     "Bailey NTT",
+            //     false,
+            //     100,
+            // );
 
             // bench_template(
             //     MAX_SCALARS_LOG2,
