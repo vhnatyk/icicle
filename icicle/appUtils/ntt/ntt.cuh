@@ -401,12 +401,14 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       s = 1;
       shift_s = 2;
       j = l & 1; // Equivalent to: l % (1 << s)
-      tw = r_twiddles[j * (n_div_2_twiddles >> s)];
-      oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
+      tw = r_twiddles[j * (n_div_2_twiddles >> 1)];
+      // if (j != 0)
+      //   tw = r_twiddles[n_div_2_twiddles >> 1];
+      oij = (((l >> 1) * 4) & n_m1) + j;
       shift_s = oij + shift_s; // reuse for k
 
       uu = arr + oij;
-      vv = arr + shift_s;
+      vv = arr + oij + 2;
 
       uuu = uu;
       vvv = vv;
@@ -428,14 +430,14 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       //   //   // tw2 = r_twiddles[blockIdx.x] * r_twiddles[threadIdx.x * 2 + 1];
       // }
       ////////
-      s = 0;
-      shift_s = 1 << s;
-      j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-                             // tw = r_twiddles[j * (n_twiddles >> s)];         // TODO: it all can be constant here except oij
+      // s = 0;
+      // shift_s = 1;
+      // j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+      //  tw = r_twiddles[j * (n_twiddles >> s)];         // TODO: it all can be constant here except oij
 
-      oij = (((l >> s) * (shift_s << 1)) & n_m1) + j; // but the simplification oij = (l >> 1) & n_m1
-                                                      // actually breaks correctness and decreases performance?!!
-      j = oij + shift_s;                              // reuse for k
+      oij = ((l << 1) & n_m1); // but the simplification oij = (l >> 1) & n_m1
+                               // actually breaks correctness and decreases performance?!!
+      j = oij + 1;             // reuse for k
 
       uu = arr + oij;
       vv = arr + j;
