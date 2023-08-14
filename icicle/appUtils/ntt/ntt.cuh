@@ -313,8 +313,7 @@ __global__ void batch_mul_tw_ij(E *element_vec, S *scalar_vec, unsigned n2, unsi
   if (tid < n2 * n1)
   {
     element_vec[tid] = scalar_vec[i * j] * element_vec[tid];
-  //     element_vec[i * n1 + j] = scalar_vec[i * j] * element_vec[i * n1 + j];
-
+    //     element_vec[i * n1 + j] = scalar_vec[i * j] * element_vec[i * n1 + j];
   }
 
   // for (int j = 0; j < n2; j++)
@@ -400,14 +399,14 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       }
 
       s = 1;
-      shift_s = 1 << s;
-      j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+      shift_s = 2;
+      j = l & 1; // Equivalent to: l % (1 << s)
       tw = r_twiddles[j * (n_div_2_twiddles >> s)];
       oij = (((l >> s) * (shift_s << 1)) & n_m1) + j;
-      j = oij + shift_s; // reuse for k
+      shift_s = oij + shift_s; // reuse for k
 
       uu = arr + oij;
-      vv = arr + j;
+      vv = arr + shift_s;
 
       uuu = uu;
       vvv = vv;
@@ -415,7 +414,7 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       u = *uu;
       v = *vv;
       *uuu = u + v;
-      *vvv = tw * (u - v);
+      *vvv = j == 0 ? (u - v) : tw * (u - v);
       // if (blockIdx.x != 0 && threadIdx.x != 0)
       // {
       //   tw = r_twiddles[blockIdx.x];
