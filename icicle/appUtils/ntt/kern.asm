@@ -1,0 +1,512 @@
+      MOV R1, c[0x0][0x28] 
+      I2F.U32.RP R0, c[0x0][0x18c] 
+      MOV R4, c[0x0][0x18c] 
+      S2UR UR4, SR_CTAID.X 
+      ISETP.NE.U32.AND P2, PT, RZ, c[0x0][0x18c], PT 
+      MUFU.RCP R0, R0 
+      IADD3 R2, R0, 0xffffffe, RZ 
+      F2I.FTZ.U32.TRUNC.NTZ R3, R2 
+      IMAD.MOV.U32 R2, RZ, RZ, RZ 
+      IMAD.MOV R5, RZ, RZ, -R3 
+      IMAD R5, R5, c[0x0][0x18c], RZ 
+      IMAD.HI.U32 R3, R3, R5, R2 
+      IMAD.HI.U32 R5, R3, c[0x0][0x168], RZ 
+      IMAD.MOV R3, RZ, RZ, -R5 
+      IMAD R0, R3, R4, c[0x0][0x168] 
+      ISETP.GE.U32.AND P0, PT, R0, c[0x0][0x18c], PT 
+@P0   IADD3 R0, R0, -c[0x0][0x18c], RZ 
+@P0   IADD3 R5, R5, 0x1, RZ 
+      ISETP.GE.U32.AND P1, PT, R0, c[0x0][0x18c], PT 
+@P1   IADD3 R5, R5, 0x1, RZ 
+@!P2  LOP3.LUT R5, RZ, c[0x0][0x18c], RZ, 0x33, !PT 
+      I2F.U32.RP R0, R5 
+      ISETP.NE.U32.AND P1, PT, R5, RZ, PT 
+      MUFU.RCP R0, R0 
+      IADD3 R2, R0, 0xffffffe, RZ 
+      IMAD.MOV.U32 R0, RZ, RZ, c[0x0][0x180] 
+      F2I.FTZ.U32.TRUNC.NTZ R3, R2 
+      ISETP.GT.U32.AND P2, PT, R0, c[0x0][0x184], PT 
+      MOV R2, RZ 
+      IMAD R4, R5, R3, RZ 
+      IMAD.MOV R7, RZ, RZ, -R4 
+      IMAD.HI.U32 R3, R3, R7, R2 
+      IMAD.HI.U32 R3, R3, UR4, RZ 
+      IMAD.MOV R4, RZ, RZ, -R3 
+      S2R R3, SR_TID.X 
+      IMAD R4, R5, R4, UR4 
+      ISETP.GE.U32.AND P0, PT, R4, R5, PT 
+@P0   IADD3 R4, -R5, R4, RZ 
+      ISETP.GE.U32.AND P0, PT, R4, R5, PT 
+@P0   IADD3 R4, -R5, R4, RZ 
+@P2   EXIT 
+@!P1  LOP3.LUT R4, RZ, R5, RZ, 0x33, !PT 
+      ULDC UR5, c[0x0][0x0] 
+      UIMAD UR4, UR4, UR5, URZ 
+      IMAD R0, R4, c[0x0][0x0], R3 
+      MOV R3, c[0x0][0x180] 
+      USHF.L.U32 UR4, UR4, 0x1, URZ 
+      ULDC.64 UR8, c[0x0][0x118] 
+      LOP3.LUT R2, R0, 0xffff, RZ, 0xc0, !PT 
+      IMAD.MOV.U32 R6, RZ, RZ, 0x1 
+      IADD3 R7, -R3, c[0x0][0x184], RZ 
+      IMAD.MOV.U32 R4, RZ, RZ, c[0x0][0x178] 
+      IMAD.MOV.U32 R9, RZ, RZ, 0x20 
+      SHF.L.U32 R6, R6, R7, RZ 
+      IADD3 R5, R6, 0xffff, RZ 
+      LOP3.LUT R17, R6, 0xffff, RZ, 0xc0, !PT 
+      LOP3.LUT R16, R5, R0, RZ, 0xc0, !PT 
+      SHF.R.U32.HI R5, RZ, R7, R4 
+      SHF.R.U32.HI R7, RZ, R7, R2 
+      LOP3.LUT R4, R16, 0xffff, RZ, 0xc0, !PT 
+      IMAD R7, R7, R17, RZ 
+      ISETP.NE.AND P0, PT, R3, RZ, PT 
+      IMAD R4, R4, R5, RZ 
+      IMAD.SHL.U32 R7, R7, 0x2, RZ 
+      IMAD.WIDE.U32 R4, R4, R9, c[0x0][0x170] 
+      LOP3.LUT R7, R7, c[0x0][0x190], RZ, 0xc0, !PT 
+      LDG.E.128.CONSTANT R12, [R4.64] 
+      IMAD.IADD R7, R16, 0x1, R7 
+      LDG.E.128.CONSTANT R8, [R4.64+0x10] 
+      LOP3.LUT R7, R7, 0xffff, RZ, 0xc0, !PT 
+      IMAD.IADD R6, R17, 0x1, R7 
+@!P0  BRA 0x7fe702d3f0f0 
+      UMOV UR5, 0x0 
+      ISETP.NE.AND P0, PT, R3, c[0x0][0x184], PT 
+      ULDC.64 UR6, c[0x0][0x18] 
+      UIADD3 UR5, UP0, UR5, UR6, URZ 
+      UIADD3.X UR6, URZ, UR7, URZ, UP0, !UPT 
+      MOV R18, UR5 
+      MOV R19, UR6 
+      IMAD.WIDE.U32 R18, R7, 0x20, R18 
+      IMAD.MOV.U32 R43, RZ, RZ, R19 
+      MOV R42, R18 
+      IMAD.WIDE.U32 R16, R17, 0x20, R18 
+      IMAD.MOV.U32 R45, RZ, RZ, R17 
+      MOV R44, R16 
+@P0   BRA 0x7fe702d3f1f0 
+      IADD3 R19, P0, R7, UR4, RZ 
+      IADD3 R17, P1, R6, UR4, RZ 
+      IMAD.X R6, RZ, RZ, RZ, P0 
+      LEA R18, P0, R19, c[0x0][0x160], 0x5 
+      IMAD.X R4, RZ, RZ, RZ, P1 
+      LEA R16, P1, R17, c[0x0][0x160], 0x5 
+      LEA.HI.X R19, R19, c[0x0][0x164], R6, 0x5, P0 
+      LEA.HI.X R17, R17, c[0x0][0x164], R4, 0x5, P1 
+      BRA 0x7fe702d3f1f0 
+      UMOV UR5, 0x0 
+      IADD3 R6, P0, R6, UR4, RZ 
+      ULDC.64 UR6, c[0x0][0x18] 
+      IADD3 R43, P1, R7, UR4, RZ 
+      UIADD3 UR5, UP0, UR5, UR6, URZ 
+      IMAD.X R45, RZ, RZ, RZ, P0 
+      LEA R44, P0, R6, c[0x0][0x160], 0x5 
+      UIADD3.X UR6, URZ, UR7, URZ, UP0, !UPT 
+      IMAD.X R4, RZ, RZ, RZ, P1 
+      LEA R42, P2, R43, c[0x0][0x160], 0x5 
+      IMAD.U32 R18, RZ, RZ, UR5 
+      LEA.HI.X R45, R6, c[0x0][0x164], R45, 0x5, P0 
+      IMAD.U32 R19, RZ, RZ, UR6 
+      LEA.HI.X R43, R43, c[0x0][0x164], R4, 0x5, P2 
+      IMAD.WIDE.U32 R18, R7, 0x20, R18 
+      IMAD.WIDE.U32 R16, R17, 0x20, R18 
+      LD.E.128 R20, [R42.64] 
+      LD.E.128 R4, [R44.64] 
+      LD.E.128 R28, [R42.64+0x10] 
+      LD.E.128 R24, [R44.64+0x10] 
+      IADD3 R3, R3, 0x1, RZ 
+      IADD3 R37, P0, R20, R4, RZ 
+      IADD3 R33, P2, R20, -R4, RZ 
+      IADD3.X R38, P0, R21, R5, RZ, P0, !PT 
+      IADD3.X R36, P2, R21, ~R5, RZ, P2, !PT 
+      IADD3.X R41, P0, R22, R6, RZ, P0, !PT 
+      IADD3.X R34, P2, R22, ~R6, RZ, P2, !PT 
+      IADD3.X R22, P0, R23, R7, RZ, P0, !PT 
+      IADD3.X R32, P2, R23, ~R7, RZ, P2, !PT 
+      IADD3 R4, P1, R37, -0x1, RZ 
+      IADD3.X R20, P0, R28, R24, RZ, P0, !PT 
+      IADD3.X R24, P2, R28, ~R24, RZ, P2, !PT 
+      IADD3.X R5, P1, RZ, R38, RZ, P1, !PT 
+      IADD3.X R21, P0, R29, R25, RZ, P0, !PT 
+      IADD3.X R25, P2, R29, ~R25, RZ, P2, !PT 
+      IADD3.X R6, P1, R41, 0x1a401, RZ, P1, !PT 
+      IADD3.X R28, P0, R30, R26, RZ, P0, !PT 
+      IADD3.X R35, P2, R30, ~R26, RZ, P2, !PT 
+      IADD3.X R7, P1, R22, -0x53bda403, RZ, P1, !PT 
+      IADD3.X R23, R31, R27, RZ, P0, !PT 
+      IADD3.X R31, P3, R31, ~R27, RZ, P2, !PT 
+      IADD3.X R39, P1, R20, -0x9a1d806, RZ, P1, !PT 
+      IADD3.X R40, P1, R21, -0x3339d809, RZ, P1, !PT 
+      IADD3.X R29, P1, R28, -0x299d7d49, RZ, P1, !PT 
+@!P3  IADD3 R33, P0, R33, 0x1, RZ 
+      IADD3.X R26, P1, R23, -0x73eda754, RZ, P1, !PT 
+@!P3  IADD3.X R36, P0, R36, -0x1, RZ, P0, !PT 
+      IMAD.WIDE.U32 R42, R8, R33, RZ 
+      SEL R7, R7, R22, P1 
+      SEL R23, R26, R23, P1 
+      IMAD.WIDE.U32 R26, R13, R33, RZ 
+      SEL R22, R29, R28, P1 
+      SEL R6, R6, R41, P1 
+      IMAD.WIDE.U32 R28, R14, R33, RZ 
+      SEL R21, R40, R21, P1 
+      SEL R5, R5, R38, P1 
+      IMAD.WIDE.U32 R40, R15, R33, RZ 
+      SEL R4, R4, R37, P1 
+      SEL R20, R39, R20, P1 
+      IMAD.WIDE.U32 R26, P2, R12, R36, R26 
+@!P3  IADD3.X R34, P0, R34, -0x1a402, RZ, P0, !PT 
+      ST.E.128 [R18.64], R4 
+      IMAD.WIDE.U32 R28, P1, R13, R36, R28 
+@!P3  IADD3.X R32, P6, R32, 0x53bda402, RZ, P0, !PT 
+      ST.E.128 [R18.64+0x10], R20 
+      IMAD.WIDE.U32 R38, R9, R33, RZ 
+@!P3  IADD3.X R24, P6, R24, 0x9a1d805, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R42, P1, R15, R36, R42, P1 
+@!P3  IADD3.X R25, P6, R25, 0x3339d808, RZ, P6, !PT 
+      IMAD.WIDE.U32 R28, P5, R12, R34, R28 
+@!P3  IADD3.X R35, P6, R35, 0x299d7d48, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R6, P2, R14, R36, R40, P2 
+@!P3  IADD3.X R31, R31, 0x73eda753, RZ, P6, !PT 
+      IMAD.WIDE.U32 R4, R10, R33, RZ 
+      MOV R18, RZ 
+      MOV R19, R26 
+      IMAD.WIDE.U32.X R38, P4, R8, R36, R38, P2 
+      IMAD.WIDE.U32 R40, R11, R33, RZ 
+      IMAD.WIDE.U32.X R4, P2, R9, R36, R4, P1 
+      IMAD.WIDE.U32 R22, P0, R13, R34, R6 
+      IMAD.WIDE.U32.X R42, P5, R14, R34, R42, P5 
+      IMAD.WIDE.U32.X R40, P4, R10, R36, R40, P4 
+      IMAD.WIDE.U32.X R6, R11, R36, RZ, P2 
+      IMAD.WIDE.U32.X R38, P0, R15, R34, R38, P0 
+      IADD3.X R7, RZ, R7, RZ, P4, !PT 
+      IMAD.WIDE.U32 R22, P2, R12, R32, R22 
+      IMAD.WIDE.U32.X R4, P5, R8, R34, R4, P5 
+      IMAD.WIDE.U32 R42, P4, R13, R32, R42 
+      IMAD.WIDE.U32.X R40, P0, R9, R34, R40, P0 
+      IMAD.HI.U32 R19, P1, R12, R33, R18 
+      IMAD.WIDE.U32.X R38, P2, R14, R32, R38, P2 
+      IADD3.X R21, P1, R27, R28, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R4, P4, R15, R32, R4, P4 
+      IADD3.X R28, P1, R29, R22, RZ, P1, !PT 
+      IMAD.WIDE.U32 R42, P6, R12, R24, R42 
+      IMAD.WIDE.U32.X R6, P5, R10, R34, R6, P5 
+      IADD3.X R27, P1, R23, R42, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R36, R11, R34, RZ, P0 
+      IMAD.WIDE.U32.X R40, P2, R8, R32, R40, P2 
+      IADD3.X R37, RZ, R37, RZ, P5, !PT 
+      IMAD.WIDE.U32 R38, P3, R13, R24, R38 
+      IMAD.WIDE.U32.X R4, P0, R14, R24, R4, P6 
+      IMAD.WIDE.U32.X R6, P5, R9, R32, R6, P4 
+      IMAD.WIDE.U32.X R40, P3, R15, R24, R40, P3 
+      IMAD.WIDE.U32 R4, P4, R13, R25, R4 
+      IMAD.WIDE.U32.X R36, P2, R10, R32, R36, P2 
+      IMAD.WIDE.U32 R38, P6, R12, R25, R38 
+      IMAD.WIDE.U32.X R22, R11, R32, RZ, P5 
+      IADD3.X R26, P1, R43, R38, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R6, P0, R8, R24, R6, P0 
+      IADD3.X R23, RZ, R23, RZ, P2, !PT 
+      IMAD.WIDE.U32 R4, P5, R12, R35, R4 
+      IMAD.WIDE.U32.X R36, P3, R9, R24, R36, P3 
+      IADD3.X R4, P1, R39, R4, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R40, P6, R14, R25, R40, P6 
+      IMAD.WIDE.U32.X R6, P4, R15, R25, R6, P4 
+      IMAD.WIDE.U32.X R22, P0, R10, R24, R22, P0 
+      IMAD.WIDE.U32.X R38, R11, R24, RZ, P3 
+      IMAD.WIDE.U32 R40, P2, R13, R35, R40 
+      IADD3.X R39, RZ, R39, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R36, P6, R8, R25, R36, P6 
+      IMAD.WIDE.U32.X R6, P5, R14, R35, R6, P5 
+      IMAD.WIDE.U32.X R22, P4, R9, R25, R22, P4 
+      IMAD.WIDE.U32 R40, P3, R12, R31, R40 
+      IMAD.WIDE.U32.X R36, P2, R15, R35, R36, P2 
+      IADD3.X R5, P1, R5, R40, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R38, P6, R10, R25, R38, P6 
+      IMAD.WIDE.U32 R6, P0, R13, R31, R6 
+      IMAD.WIDE.U32.X R24, R11, R25, RZ, P4 
+      IADD3.X R6, P1, R6, R41, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R22, P5, R8, R35, R22, P5 
+      IADD3.X R25, RZ, R25, RZ, P6, !PT 
+      SHF.L.U32.HI R41, R5, 0x1, R6 
+      IMAD.WIDE.U32.X R36, P3, R14, R31, R36, P3 
+      IMAD.WIDE.U32.X R38, P2, R9, R35, R38, P2 
+      IADD3.X R7, P1, R7, R36, RZ, P1, !PT 
+      MOV R36, RZ 
+      IMAD.WIDE.U32.X R22, P0, R15, R31, R22, P0 
+      IMAD.WIDE.U32.X R24, P5, R10, R35, R24, P5 
+      IMAD.WIDE.U32.X R14, P3, R8, R31, R38, P3 
+      IADD3.X R8, P1, R22, R37, RZ, P1, !PT 
+      SHF.L.U32.HI R39, R6, 0x1, R7 
+      IMAD.WIDE.U32.X R24, P0, R9, R31, R24, P0 
+      IADD3.X R13, P1, R23, R14, RZ, P1, !PT 
+      SHF.L.U32.HI R20, R7, 0x1, R8 
+      IMAD.WIDE.U32.X R34, R11, R35, RZ, P2 
+      IADD3.X R9, P2, R24, R15, RZ, P1, !PT 
+      SHF.L.U32.HI R42, R8, 0x1, R13 
+      IMAD.WIDE.U32 R14, R39, -0x7cfca71c, RZ 
+      IADD3.X R35, RZ, R35, RZ, P5, !PT 
+      SHF.L.U32.HI R43, R13, 0x1, R9 
+      IMAD.WIDE.U32 R22, R20, -0x7cfca71c, RZ 
+      IMAD.WIDE.U32 R14, P5, R41, 0x509cde80, R14 
+      IMAD.WIDE.U32.X R34, P1, R10, R31, R34, P3 
+      MOV R37, R14 
+      IMAD.WIDE.U32.X R30, R11, R31, RZ, P0 
+      IADD3.X R38, P2, R25, R34, RZ, P2, !PT 
+      IMAD.WIDE.U32 R22, P4, R39, 0x509cde80, R22 
+      SHF.L.U32.HI R40, R9, 0x1, R38 
+      IMAD.WIDE.U32 R24, R43, -0x7cfca71c, RZ 
+      IMAD.HI.U32 RZ, P0, R41, -0x7cfca71c, R36 
+      IADD3.X R37, P2, R30, R35, RZ, P2, !PT 
+      IMAD.WIDE.U32 R10, R42, -0x7cfca71c, RZ 
+      SHF.L.U32.HI R29, R38, 0x1, R37 
+      IADD3.X R36, RZ, RZ, R31, P2, P1 
+      IMAD.WIDE.U32 R22, P6, R41, 0x2f92eb5c, R22 
+      SHF.L.U32.HI R18, R37, 0x1, R36 
+      IMAD.WIDE.U32.X R24, P4, R42, 0x509cde80, R24, P4 
+      IADD3.X RZ, P0, R15, R22, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R10, P5, R20, 0x509cde80, R10, P5 
+      IMAD.WIDE.U32 R14, R29, -0x7cfca71c, RZ 
+      IMAD.WIDE.U32.X R24, P6, R20, 0x2f92eb5c, R24, P6 
+      IMAD.WIDE.U32 R10, P3, R39, 0x2f92eb5c, R10 
+      IMAD.WIDE.U32.X R14, P4, R40, 0x509cde80, R14, P4 
+      IMAD R12, R12, R33, RZ 
+      IMAD.WIDE.U32 R24, P2, R39, -0x26bef053, R24 
+      IMAD.WIDE.U32 R32, R40, -0x7cfca71c, RZ 
+      IMAD.WIDE.U32 R10, P1, R41, -0x26bef053, R10 
+      IMAD.WIDE.U32.X R30, R18, 0x509cde80, RZ, P4 
+      IADD3.X RZ, P0, R23, R10, RZ, P0, !PT 
+      IMAD.WIDE.U32 R24, P4, R41, -0x3e07dc4c, R24 
+      IMAD.WIDE.U32.X R32, P5, R43, 0x509cde80, R32, P5 
+      IADD3.X RZ, P0, R11, R24, RZ, P0, !PT 
+      IMAD.WIDE.U32 R22, R18, -0x7cfca71c, RZ 
+      IMAD.WIDE.U32.X R10, P3, R42, 0x2f92eb5c, R32, P3 
+      IMAD.WIDE.U32.X R32, P5, R29, 0x509cde80, R22, P5 
+      IMAD.WIDE.U32.X R10, P1, R20, -0x26bef053, R10, P1 
+      IADD3.X R31, RZ, R31, RZ, P5, !PT 
+      IMAD.WIDE.U32.X R32, P3, R40, 0x2f92eb5c, R32, P3 
+      IMAD.WIDE.U32 R10, P5, R39, -0x3e07dc4c, R10 
+      IMAD.WIDE.U32.X R22, R18, 0x2f92eb5c, RZ, P3 
+      IMAD.WIDE.U32 R10, P3, R41, 0xe2d772d, R10 
+      IMAD.WIDE.U32.X R14, P6, R43, 0x2f92eb5c, R14, P6 
+      IADD3.X RZ, P0, R25, R10, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R32, P1, R43, -0x26bef053, R32, P1 
+      IMAD.WIDE.U32.X R24, P2, R42, -0x26bef053, R14, P2 
+      IMAD.WIDE.U32.X R34, P6, R29, 0x2f92eb5c, R30, P6 
+      IMAD.WIDE.U32.X R24, P4, R20, -0x3e07dc4c, R24, P4 
+      IADD3.X R23, RZ, R23, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R34, P2, R40, -0x26bef053, R34, P2 
+      IMAD.WIDE.U32.X R14, P5, R42, -0x3e07dc4c, R32, P5 
+      IMAD.WIDE.U32.X R32, P1, R29, -0x26bef053, R22, P1 
+      IMAD.WIDE.U32 R22, P6, R39, 0xe2d772d, R24 
+      IMAD.WIDE.U32.X R24, R18, -0x26bef053, RZ, P2 
+      IMAD.WIDE.U32.X R14, P3, R20, 0xe2d772d, R14, P3 
+      IADD3.X R25, RZ, R25, RZ, P1, !PT 
+      IMAD.WIDE.U32 R22, P1, R41, 0x7fb78ddf, R22 
+      IMAD.WIDE.U32.X R32, P5, R40, -0x3e07dc4c, R32, P5 
+      IADD3.X RZ, P0, R11, R22, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R10, P4, R43, -0x3e07dc4c, R34, P4 
+      IMAD.WIDE.U32 R14, P2, R39, 0x7fb78ddf, R14 
+      IMAD.WIDE.U32.X R10, P6, R42, 0xe2d772d, R10, P6 
+      IMAD.WIDE.U32.X R30, R18, -0x3e07dc4c, RZ, P5 
+      IMAD.WIDE.U32.X R10, P1, R20, 0x7fb78ddf, R10, P1 
+      IMAD.WIDE.U32.X R24, P4, R29, -0x3e07dc4c, R24, P4 
+      IMAD.WIDE.U32 R14, P5, R41, -0x72abdac5, R14 
+      IADD3.X R31, RZ, R31, RZ, P4, !PT 
+      IMAD.WIDE.U32.X R32, P3, R43, 0xe2d772d, R32, P3 
+      IADD3.X R22, P0, R23, R14, RZ, P0, !PT 
+      IMAD.WIDE.U32 R10, P4, R39, -0x72abdac5, R10 
+      IMAD.WIDE.U32.X R24, P6, R40, 0xe2d772d, R24, P6 
+      IADD3.X R23, P0, R10, R15, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R32, P2, R42, 0x7fb78ddf, R32, P2 
+      IMAD.WIDE.U32.X R44, P3, R29, 0xe2d772d, R30, P3 
+      IMAD.WIDE.U32.X R14, R18, 0xe2d772d, RZ, P6 
+      IMAD.WIDE.U32.X R34, P1, R43, 0x7fb78ddf, R24, P1 
+      IMAD.WIDE.U32.X R30, P5, R20, -0x72abdac5, R32, P5 
+      IADD3.X R33, RZ, R15, RZ, P3, !PT 
+      IMAD.WIDE.U32.X R44, P2, R40, 0x7fb78ddf, R44, P2 
+      IADD3.X R24, P0, R11, R30, RZ, P0, !PT 
+      IMAD.MOV.U32 R32, RZ, RZ, R14 
+      IMAD.WIDE.U32.X R34, P4, R42, -0x72abdac5, R34, P4 
+      IMAD.WIDE.U32.X R14, R18, 0x7fb78ddf, RZ, P2 
+      IADD3.X R20, P0, R34, R31, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R32, P1, R29, 0x7fb78ddf, R32, P1 
+      IMAD.WIDE.U32.X R10, P5, R43, -0x72abdac5, R44, P5 
+      IADD3.X R15, RZ, R15, RZ, P1, !PT 
+      IMAD.WIDE.U32.X R40, P1, R40, -0x72abdac5, R32, P4 
+      IADD3.X R35, P0, R35, R10, RZ, P0, !PT 
+      SHF.L.U32.HI R33, R22, 0x1, R23 
+      IMAD.WIDE.U32.X R14, P4, R29, -0x72abdac5, R14, P5 
+      IADD3.X R22, P2, R40, R11, RZ, P0, !PT 
+      SHF.L.U32.HI R10, R23, 0x1, R24 
+      IMAD.WIDE.U32.X R30, R18, -0x72abdac5, RZ, P1 
+      MOV R11, RZ 
+      IADD3.X R23, P2, R41, R14, RZ, P2, !PT 
+      SHF.L.U32.HI R40, R24, 0x1, R20 
+      IMAD.HI.U32 R29, P0, R33, -0x1, R10 
+      MOV R41, RZ 
+      IADD3.X R11, P3, R30, R15, RZ, P2, !PT 
+      IADD3 R24, -R10, R40, RZ 
+      IMAD.HI.U32 R25, P1, R10, -0x1, R40 
+      SHF.L.U32.HI R14, R20, 0x1, R35 
+      MOV R15, RZ 
+      IADD3 R39, P2, R12, -R33, RZ 
+      IMAD.WIDE.U32 R24, P6, R33, -0x1a402, R24 
+      IADD3 R12, -R33, R10, RZ 
+      SHF.L.U32.HI R18, R35, 0x1, R22 
+      IMAD.WIDE.U32.X R46, P0, R40, -0x1, R14, P0 
+      IADD3 RZ, P5, RZ, R12, RZ 
+      IADD3.X R12, P2, R19, ~R12, RZ, P2, !PT 
+      IADD3.X R32, RZ, RZ, R31, P3, P4 
+      MOV R19, RZ 
+      IADD3.X R24, P4, R29, R24, RZ, P5, !PT 
+      IMAD.WIDE.U32 R46, P5, R10, -0x1a402, R46 
+      SHF.L.U32.HI R20, R23, 0x1, R11 
+      SHF.L.U32.HI R22, R22, 0x1, R23 
+      IMAD.WIDE.U32.X R30, P1, R14, -0x1, R18, P1 
+      IADD3.X R19, P2, R21, ~R24, RZ, P2, !PT 
+      MOV R21, RZ 
+      IMAD.WIDE.U32 R46, P3, R33, 0x53bda402, R46 
+      SHF.L.U32.HI R24, R11, 0x1, R32 
+      IMAD.MOV.U32 R23, RZ, RZ, RZ 
+      IMAD.WIDE.U32.X R42, P1, R22, -0x1, R20, P1 
+      IADD3.X R21, P4, R25, R46, RZ, P4, !PT 
+      MOV R25, RZ 
+      IMAD.WIDE.U32.X R30, P6, R40, -0x1a402, R30, P6 
+      IADD3.X R21, P2, R28, ~R21, RZ, P2, !PT 
+      IMAD.WIDE.U32.X R48, P0, R18, -0x1, R22, P0 
+      IMAD.WIDE.U32.X R34, R24, -0x1, RZ, P1 
+      IMAD.WIDE.U32 R30, P1, R10, 0x53bda402, R30 
+      IMAD.WIDE.U32.X R44, P0, R20, -0x1, R24, P0 
+      IMAD.WIDE.U32.X R48, P5, R14, -0x1a402, R48, P5 
+      IADD3.X R35, RZ, R35, RZ, P0, !PT 
+      IMAD.WIDE.U32 R30, P0, R33, 0x9a1d805, R30 
+      IMAD.WIDE.U32.X R44, P5, R22, -0x1a402, R44, P5 
+      IADD3.X R30, P4, R47, R30, RZ, P4, !PT 
+      IMAD.WIDE.U32.X R46, P3, R40, 0x53bda402, R48, P3 
+      IADD3.X R11, P2, R27, ~R30, RZ, P2, !PT 
+      IMAD.WIDE.U32.X R42, P6, R18, -0x1a402, R42, P6 
+      IMAD.WIDE.U32.X R28, R24, -0x1a402, RZ, P5 
+      IMAD.WIDE.U32 R46, P5, R10, 0x9a1d805, R46 
+      IMAD.WIDE.U32.X R34, P6, R20, -0x1a402, R34, P6 
+      IMAD.WIDE.U32.X R42, P1, R14, 0x53bda402, R42, P1 
+      IADD3.X R29, RZ, R29, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R44, P3, R18, 0x53bda402, R44, P3 
+      IMAD.WIDE.U32 R46, P6, R33, 0x3339d808, R46 
+      IMAD.WIDE.U32.X R34, P1, R22, 0x53bda402, R34, P1 
+      IADD3.X R15, P4, R31, R46, RZ, P4, !PT 
+      IMAD.WIDE.U32.X R28, P3, R20, 0x53bda402, R28, P3 
+      IADD3.X R15, P2, R26, ~R15, RZ, P2, !PT 
+      IMAD.WIDE.U32.X R44, P5, R14, 0x9a1d805, R44, P5 
+      IMAD.WIDE.U32.X R42, P0, R40, 0x9a1d805, R42, P0 
+      IMAD.WIDE.U32.X R30, R24, 0x53bda402, RZ, P1 
+      IMAD.WIDE.U32.X R26, P5, R22, 0x9a1d805, R28, P5 
+      IADD3.X R31, RZ, R31, RZ, P3, !PT 
+      IMAD.WIDE.U32.X R44, P6, R40, 0x3339d808, R44, P6 
+      IMAD.WIDE.U32.X R34, P0, R18, 0x9a1d805, R34, P0 
+      IMAD.WIDE.U32 R42, P1, R10, 0x3339d808, R42 
+      IMAD.WIDE.U32.X R28, R24, 0x9a1d805, RZ, P5 
+      IMAD.WIDE.U32 R44, P5, R10, 0x299d7d48, R44 
+      IMAD.WIDE.U32.X R30, P0, R20, 0x9a1d805, R30, P0 
+      IMAD.WIDE.U32 R42, P3, R33, 0x299d7d48, R42 
+      IADD3.X R29, RZ, R29, RZ, P0, !PT 
+      IMAD.WIDE.U32.X R34, P1, R14, 0x3339d808, R34, P1 
+      IADD3.X R23, P4, R47, R42, RZ, P4, !PT 
+      IMAD.WIDE.U32 R32, P0, R33, 0x73eda753, R44 
+      IADD3.X R4, P2, R4, ~R23, RZ, P2, !PT 
+      IMAD.WIDE.U32.X R30, P1, R22, 0x3339d808, R30, P1 
+      IADD3.X R32, P4, R43, R32, RZ, P4, !PT 
+      IMAD.WIDE.U32.X R26, P6, R18, 0x3339d808, R26, P6 
+      IADD3.X R32, P2, R5, ~R32, RZ, P2, !PT 
+      IMAD.WIDE.U32.X R42, P3, R40, 0x299d7d48, R34, P3 
+      IMAD.WIDE.U32.X R34, R24, 0x3339d808, RZ, P1 
+      IMAD.WIDE.U32.X R28, P6, R20, 0x3339d808, R28, P6 
+      IMAD.WIDE.U32 R42, P1, R10, 0x73eda753, R42 
+      IADD3.X R35, RZ, R35, RZ, P6, !PT 
+      IADD3 R10, P6, R39, -0x1, RZ 
+      IMAD.WIDE.U32.X R26, P5, R14, 0x299d7d48, R26, P5 
+      IADD3.X R33, P4, R42, R33, RZ, P4, !PT 
+      IADD3.X R5, P6, RZ, R12, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R30, P3, R18, 0x299d7d48, R30, P3 
+      IADD3.X R33, P2, R6, ~R33, RZ, P2, !PT 
+      IADD3.X R6, P6, R19, 0x1a401, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R40, P0, R40, 0x73eda753, R26, P0 
+      IADD3.X R26, P6, R21, -0x53bda403, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R30, P1, R14, 0x73eda753, R30, P1 
+      IADD3.X R42, P4, R43, R40, RZ, P4, !PT 
+      IADD3.X R14, P6, R11, -0x9a1d806, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R28, P5, R22, 0x299d7d48, R28, P5 
+      IADD3.X R42, P2, R7, ~R42, RZ, P2, !PT 
+      IADD3.X R40, P6, R15, -0x3339d809, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R34, P3, R20, 0x299d7d48, R34, P3 
+      IADD3.X R41, P4, R30, R41, RZ, P4, !PT 
+      IADD3.X R7, P6, R4, -0x299d7d49, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R44, R24, 0x299d7d48, RZ, P5 
+      IADD3.X R41, P2, R8, ~R41, RZ, P2, !PT 
+      IADD3.X R23, P6, R32, -0x73eda754, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R28, P0, R18, 0x73eda753, R28, P0 
+      IADD3.X R45, RZ, R45, RZ, P3, !PT 
+      IADD3.X RZ, P6, R33, -0x1, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R34, P1, R22, 0x73eda753, R34, P1 
+      IADD3.X R30, P4, R31, R28, RZ, P4, !PT 
+      IADD3.X RZ, P6, R42, -0x1, RZ, P6, !PT 
+      IMAD.WIDE.U32.X R44, P0, R20, 0x73eda753, R44, P0 
+      IADD3.X R28, P4, R34, R29, RZ, P4, !PT 
+      IADD3.X R30, P2, R13, ~R30, RZ, P2, !PT 
+      IMAD.WIDE.U32.X R24, R24, 0x73eda753, RZ, P1 
+      IADD3.X RZ, P6, R41, -0x1, RZ, P6, !PT 
+      IADD3.X R35, P4, R35, R44, RZ, P4, !PT 
+      IADD3.X R28, P2, R9, ~R28, RZ, P2, !PT 
+      IADD3.X RZ, P6, R30, -0x1, RZ, P6, !PT 
+      IADD3.X R44, P4, R24, R45, RZ, P4, !PT 
+      IADD3.X R35, P2, R38, ~R35, RZ, P2, !PT 
+      IADD3.X RZ, P6, R28, -0x1, RZ, P6, !PT 
+      IADD3.X R25, RZ, RZ, R25, P4, P0 
+      IADD3.X R44, P2, R37, ~R44, RZ, P2, !PT 
+      IADD3.X RZ, P6, R35, -0x1, RZ, P6, !PT 
+      IADD3.X R25, R36, ~R25, RZ, P2, !PT 
+      IADD3.X RZ, P6, R44, -0x1, RZ, P6, !PT 
+      IADD3.X RZ, P6, R25, -0x1, RZ, P6, !PT 
+      SEL R39, R10, R39, P6 
+      SEL R5, R5, R12, P6 
+      IADD3 R8, P0, R39, -0x1, RZ 
+      SEL R6, R6, R19, P6 
+      IADD3.X R12, P0, RZ, R5, RZ, P0, !PT 
+      SEL R26, R26, R21, P6 
+      IADD3.X R9, P0, R6, 0x1a401, RZ, P0, !PT 
+      SEL R14, R14, R11, P6 
+      IADD3.X R11, P0, R26, -0x53bda403, RZ, P0, !PT 
+      SEL R40, R40, R15, P6 
+      IADD3.X R13, P0, R14, -0x9a1d806, RZ, P0, !PT 
+      SEL R10, R7, R4, P6 
+      IADD3.X R15, P0, R40, -0x3339d809, RZ, P0, !PT 
+      SEL R23, R23, R32, P6 
+      IADD3.X R19, P0, R10, -0x299d7d49, RZ, P0, !PT 
+      IADD3.X R18, P0, R23, -0x73eda754, RZ, P0, !PT 
+      SEL R7, R11, R26, P0 
+      SEL R6, R9, R6, P0 
+      SEL R4, R8, R39, P0 
+      SEL R5, R12, R5, P0 
+      SEL R11, R18, R23, P0 
+      SEL R10, R19, R10, P0 
+      ST.E.128 [R16.64], R4 
+      SEL R9, R15, R40, P0 
+      SEL R8, R13, R14, P0 
+      ISETP.GT.U32.AND P0, PT, R3, c[0x0][0x184], PT 
+      ST.E.128 [R16.64+0x10], R8 
+      BAR.SYNC 0x0 
+@P0   CALL.REL.NOINC 0x7fe702d40a00 
+      BRA 0x7fe702d3ee10 
+      EXIT 
+      BRA 0x7fe702d40a10
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP
+      NOP

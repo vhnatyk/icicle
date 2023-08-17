@@ -1,6 +1,3 @@
-// based on https://leimao.github.io/blog/CUDA-Shared-Memory-Templated-Kernel/
-// may be outdated, but only worked like that 
-
 // -------------------------------------------------------------
 // cuDPP -- CUDA Data Parallel Primitives library
 // -------------------------------------------------------------
@@ -59,8 +56,8 @@
 #define _SHAREDMEM_H_
 
 #include "../curves/bls12_381/curve_config.cuh"
-#include "../curves/bls12_377/curve_config.cuh"
-#include "../curves/bn254/curve_config.cuh"
+// #include "../curves/bls12_377/curve_config.cuh"
+// #include "../curves/bn254/curve_config.cuh"
 
 /** @brief Wrapper class for templatized dynamic shared memory arrays.
   * 
@@ -187,30 +184,30 @@ struct SharedMemory <BLS12_381::projective_t>
     __device__ BLS12_381::projective_t* getPointer() { extern __shared__ BLS12_381::projective_t s_projective_t_bls12_381[]; return s_projective_t_bls12_381; }    
 };
 
-template <>
-struct SharedMemory <BLS12_377::scalar_t>
-{
-    __device__ BLS12_377::scalar_t* getPointer() { extern __shared__ BLS12_377::scalar_t s_scalar_t_bls12_377[]; return s_scalar_t_bls12_377; }    
-};
+// template <>
+// struct SharedMemory <BLS12_377::scalar_t>
+// {
+//     __device__ BLS12_377::scalar_t* getPointer() { extern __shared__ BLS12_377::scalar_t s_scalar_t_bls12_377[]; return s_scalar_t_bls12_377; }    
+// };
 
-template <>
-struct SharedMemory <BLS12_377::projective_t>
-{
-    __device__ BLS12_377::projective_t* getPointer() { extern __shared__ BLS12_377::projective_t s_projective_t_bls12_377[]; return s_projective_t_bls12_377; }    
-};
+// template <>
+// struct SharedMemory <BLS12_377::projective_t>
+// {
+//     __device__ BLS12_377::projective_t* getPointer() { extern __shared__ BLS12_377::projective_t s_projective_t_bls12_377[]; return s_projective_t_bls12_377; }    
+// };
 
 
-template <>
-struct SharedMemory <BN254::scalar_t>
-{
-    __device__ BN254::scalar_t* getPointer() { extern __shared__ BN254::scalar_t s_scalar_t_bn254[]; return s_scalar_t_bn254; }    
-};
+// template <>
+// struct SharedMemory <BN254::scalar_t>
+// {
+//     __device__ BN254::scalar_t* getPointer() { extern __shared__ BN254::scalar_t s_scalar_t_bn254[]; return s_scalar_t_bn254; }    
+// };
 
-template <>
-struct SharedMemory <BN254::projective_t>
-{
-    __device__ BN254::projective_t* getPointer() { extern __shared__ BN254::projective_t s_projective_t_bn254[]; return s_projective_t_bn254; }    
-};
+// template <>
+// struct SharedMemory <BN254::projective_t>
+// {
+//     __device__ BN254::projective_t* getPointer() { extern __shared__ BN254::projective_t s_projective_t_bn254[]; return s_projective_t_bn254; }    
+// };
 #endif //_SHAREDMEM_H_
 
 // Leave this at the end of the file
