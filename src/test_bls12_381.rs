@@ -1462,7 +1462,7 @@ pub(crate) mod tests_bls12_381 {
     }
 
     #[test]
-    fn test_scalar_evaluation() {
+    fn test_ark_scalar_evaluation() {
         let log_test_domain_size = 6;
         let test_size = 1 << log_test_domain_size;
         let (h_coeffs, mut d_coeffs, mut d_domain) =
@@ -1513,6 +1513,32 @@ pub(crate) mod tests_bls12_381 {
         // assert_eq!(ntt_result, h_res_coeffs);
 
         let mut d_coeffs_domain = interpolate_scalars_bls12_381(&mut d_evals, &mut d_domain_inv);
+        let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..1 << log_test_domain_size)
+            .map(|_| ScalarField_BLS12_381::zero())
+            .collect();
+        d_coeffs_domain.copy_to(&mut h_coeffs_domain[..]).unwrap();
+
+        assert_eq!(h_coeffs, h_coeffs_domain[..test_size]);
+        for i in test_size..(1 << log_test_domain_size) {
+            assert_eq!(ScalarField_BLS12_381::zero(), h_coeffs_domain[i]);
+        }
+    }
+
+    #[test]
+    fn test_scalar_evaluation() {
+        let log_test_domain_size = 6;
+        let test_size = 1 << log_test_domain_size;
+        let (h_coeffs, mut d_coeffs, mut d_domain) =
+            set_up_scalars_bls12_381(test_size, log_test_domain_size, false);
+        let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
+        
+        reverse_order_scalars_bls12_381(&mut d_coeffs);
+        let mut d_evals = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
+        //reverse_order_scalars_bls12_381(&mut d_evals);
+        
+        reverse_order_scalars_bls12_381(&mut d_evals);
+        let mut d_coeffs_domain = interpolate_scalars_bls12_381(&mut d_evals, &mut d_domain_inv);
+        //reverse_order_scalars_bls12_381(&mut d_evals);
         let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..1 << log_test_domain_size)
             .map(|_| ScalarField_BLS12_381::zero())
             .collect();
