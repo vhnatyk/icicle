@@ -83,6 +83,16 @@ extern "C" {
         device_id: usize,
     ) -> c_int;
 
+    fn fast_ntt_batch_bc_cuda_bls12_381(
+        d_inout: DevicePointer<ScalarField_BLS12_381>,
+        d_twf: DevicePointer<ScalarField_BLS12_381>,
+        n: usize,
+        batch_size: usize,
+        r: bool,
+        t: bool,
+        device_id: usize,
+    ) -> c_int;
+
     fn bailey_ntt_cuda_bls12_381(
         d_inout: DevicePointer<ScalarField_BLS12_381>,
         d_twf: DevicePointer<ScalarField_BLS12_381>,
@@ -406,6 +416,26 @@ pub fn fast_ntt_batch_bls12_381(
             d_twf.as_device_ptr(),
             d_twf.len(),
             batch_size,
+            0,
+        );
+    }
+}
+
+pub fn fast_ntt_bc_batch_bls12_381(
+    d_inout: &mut DeviceBuffer<ScalarField_BLS12_381>,
+    d_twf: &mut DeviceBuffer<ScalarField_BLS12_381>,
+    batch_size: usize,
+    r: bool,
+    t: bool,
+) {
+    unsafe {
+        fast_ntt_batch_bc_cuda_bls12_381(
+            d_inout.as_device_ptr(),
+            d_twf.as_device_ptr(),
+            d_twf.len(),
+            batch_size,
+            r,
+            t,
             0,
         );
     }
@@ -1475,7 +1505,7 @@ pub(crate) mod tests_bls12_381 {
         // }
 
         let mut d_evals = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
-        
+
         //reverse_order_scalars_bls12_381(&mut d_coeffs);
         let mut d_evals_rev = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
         reverse_order_scalars_bls12_381(&mut d_evals_rev);
@@ -1500,7 +1530,6 @@ pub(crate) mod tests_bls12_381 {
         let mut h_rev_res_coeffs = vec![ScalarField_BLS12_381::zero(); test_size];
         d_evals_rev.copy_to(&mut h_rev_res_coeffs[..]).unwrap();
 
-        
         let ntt_result_as_ark = h_rev_res_coeffs
             .iter()
             .map(|p| Fr::new(p.to_ark()))
@@ -1531,11 +1560,11 @@ pub(crate) mod tests_bls12_381 {
         let (h_coeffs, mut d_coeffs, mut d_domain) =
             set_up_scalars_bls12_381(test_size, log_test_domain_size, false);
         let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
-        
+
         // reverse_order_scalars_bls12_381(&mut d_coeffs);
         let mut d_evals = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
         //reverse_order_scalars_bls12_381(&mut d_evals);
-        
+
         // reverse_order_scalars_bls12_381(&mut d_evals);
         let mut d_coeffs_domain = interpolate_scalars_bls12_381(&mut d_evals, &mut d_domain_inv);
         //reverse_order_scalars_bls12_381(&mut d_evals);
@@ -1628,10 +1657,45 @@ pub(crate) mod tests_bls12_381 {
             set_up_scalars_bls12_381(domain_size * batch_size, log_test_domain_size, false);
         let (_, _, mut d_bailey_domain) =
             set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
+        let mut d_coeffs_bailey = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
+
+        fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
+        reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+
+        // bailey_ntt_bls12_381(
+        //     &mut d_coeffs_bailey,
+        //     &mut d_bailey_domain,
+        //     &mut d_domain,
+        //     1 << log_test_domain_size / 2,
+        // );
+
+        fast_ntt_bc_batch_bls12_381(&mut d_coeffs_bailey, &mut d_domain, batch_size, true, true);
+        reverse_order_scalars_batch_bls12_381(&mut d_coeffs_bailey, batch_size);
+
+        let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> =
+            vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+        d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
+        let mut h_coeffs_bailey: Vec<ScalarField_BLS12_381> =
+            vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+        d_coeffs_bailey.copy_to(&mut h_coeffs_bailey[..]).unwrap();
+
+        assert_eq!(h_coeffs_bailey, h_coeffs_fast);
+    }
+
+    #[test]
+    fn test_scalar_bailey_ntt_full() {
+        let batch_size = 1;
+        let log_test_domain_size = 20;
+        let domain_size = 1 << log_test_domain_size;
+        let coeff_size = domain_size;
+        let (h_coeffs, mut d_coeffs, mut d_domain) =
+            set_up_scalars_bls12_381(domain_size * batch_size, log_test_domain_size, false);
+        let (_, _, mut d_bailey_domain) =
+            set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
         let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
 
         let mut d_coeffs_bailey = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
-        
+
         fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
         reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
 
@@ -1642,13 +1706,14 @@ pub(crate) mod tests_bls12_381 {
             1 << log_test_domain_size / 2,
         );
 
-        let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> = vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+        let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> =
+            vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
         d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
-        let mut h_coeffs_bailey: Vec<ScalarField_BLS12_381> = vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+        let mut h_coeffs_bailey: Vec<ScalarField_BLS12_381> =
+            vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
         d_coeffs_bailey.copy_to(&mut h_coeffs_bailey[..]).unwrap();
 
         assert_eq!(h_coeffs_bailey, h_coeffs_fast);
-
     }
 
     #[test]
