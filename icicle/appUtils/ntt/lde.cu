@@ -170,11 +170,11 @@ int evaluate_batch(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_siz
   int shared_mem = (2 * NUM_THREADS) * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
   uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
   // for (uint32_t s = logn - 1; s >= logn_shmem; s--) // TODO: this loop also can be unrolled
-  // for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
-  for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
+  for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
+  // for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
   {
-    // ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s - 1, true);
-    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s, false);
+    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s - 1, true);
+    // ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s, false);
   }
 
   // uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
@@ -207,16 +207,18 @@ int ntt_batch_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
   int max_sharedmem = 512 * sizeof(E);
   int shared_mem = (2 * NUM_THREADS) * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
   uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
-  for (uint32_t s = logn - 1; s >= logn_shmem; s--) // TODO: this loop also can be unrolled
+  // for (uint32_t s = logn - 1; s >= logn_shmem; s--) // TODO: this loop also can be unrolled
+  // for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
+  for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
   {
-    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s, true);
+    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s - 1, true);
   }
 
-  uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
-  uint32_t n_div_log2_blocks = (((1 << logn_shmem) >> (log2_num_blocks + 1)) - 1);
-  uint32_t num_blocks2x = NUM_BLOCKS * 2; // TODO: ? uint32_t
+  // uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
+  // uint32_t n_div_log2_blocks = (((1 << logn_shmem) >> (log2_num_blocks + 1)) - 1);
+  // uint32_t num_blocks2x = NUM_BLOCKS * 2; // TODO: ? uint32_t
 
-  ntt_template_kernel_shared_rev<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, n / 2, total_tasks, 0, logn_shmem - 1, n_div_log2_blocks, num_blocks2x, (1 << logn_shmem) - 1);
+  // ntt_template_kernel_shared_rev<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, n / 2, total_tasks, 0, logn_shmem - 1, n_div_log2_blocks, num_blocks2x, (1 << logn_shmem) - 1);
 
   return 0;
 }

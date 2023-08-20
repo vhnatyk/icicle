@@ -1532,11 +1532,11 @@ pub(crate) mod tests_bls12_381 {
             set_up_scalars_bls12_381(test_size, log_test_domain_size, false);
         let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
         
-        reverse_order_scalars_bls12_381(&mut d_coeffs);
+        // reverse_order_scalars_bls12_381(&mut d_coeffs);
         let mut d_evals = evaluate_scalars_bls12_381(&mut d_coeffs, &mut d_domain);
         //reverse_order_scalars_bls12_381(&mut d_evals);
         
-        reverse_order_scalars_bls12_381(&mut d_evals);
+        // reverse_order_scalars_bls12_381(&mut d_evals);
         let mut d_coeffs_domain = interpolate_scalars_bls12_381(&mut d_evals, &mut d_domain_inv);
         //reverse_order_scalars_bls12_381(&mut d_evals);
         let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..1 << log_test_domain_size)
@@ -1628,6 +1628,7 @@ pub(crate) mod tests_bls12_381 {
             set_up_scalars_bls12_381(domain_size * batch_size, log_test_domain_size, false);
         let (_, _, mut d_bailey_domain) =
             set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
+        let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
 
         //fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
 
@@ -1637,12 +1638,9 @@ pub(crate) mod tests_bls12_381 {
             &mut d_domain,
             1 << log_test_domain_size / 2,
         );
+
         reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
-
-
         let mut d_evals = d_coeffs;
-
-        let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
         let d_coeffs_domain =
             interpolate_scalars_batch_bls12_381(&mut d_evals, &mut d_domain_inv, batch_size);
         let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..domain_size * batch_size)
