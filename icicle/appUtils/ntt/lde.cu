@@ -223,6 +223,48 @@ int ntt_batch_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
   return 0;
 }
 
+///
+/**
+ * Evaluate a batch of polynomials on the same coset.
+ * @param d_inout Input array of type E (elements)
+ * @param d_twf Twiddle factors of type S (scalars) array allocated on the device memory (must be a power of 2).
+ * @param n The size of single input.
+ * @param batch_size The size of the batch; the length of `d_inout` is `n` * `batch_size`.
+ */
+template <typename E, typename S>
+int ntt_batch_b_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
+{
+  uint32_t logn = uint32_t(log(n) / log(2));
+
+  int NUM_THREADS = min(n / 2, MAX_THREADS_BATCH);
+  int chunks = max(int((n / 2) / NUM_THREADS), 1);
+  int total_tasks = batch_size * chunks;
+  int NUM_BLOCKS = total_tasks;
+  int max_sharedmem = 512 * sizeof(E);
+  int shared_mem = (2 * NUM_THREADS) * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
+  uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
+  // for (uint32_t s = logn - 1; s >= logn_shmem; s--) // TODO: this loop also can be unrolled
+  // for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
+  for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
+  {
+    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s - 1, true);
+  }
+
+  // uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
+  // uint32_t n_div_log2_blocks = (((1 << logn_shmem) >> (log2_num_blocks + 1)) - 1);
+  // uint32_t num_blocks2x = NUM_BLOCKS * 2; // TODO: ? uint32_t
+
+  // ntt_template_kernel_shared_rev<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, n / 2, total_tasks, 0, logn_shmem - 1, n_div_log2_blocks, num_blocks2x, (1 << logn_shmem) - 1);
+
+  return 0;
+}
+
+template <typename S>
+int ntt_batch_b(S *d_inout, S *d_twf, unsigned n, unsigned batch_size)
+{
+  return ntt_batch_b_template(d_inout, d_twf, n, batch_size);
+}
+
 template <typename S>
 int ntt_batch(S *d_inout, S *d_twf, unsigned n, unsigned batch_size)
 {
@@ -239,14 +281,14 @@ int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_s
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  ntt_batch(d_inout, d_twf, n, batch_size);
+  ntt_batch_b(d_inout, d_twf, n, batch_size);
   reverse_order_batch(d_inout, n, logn, batch_size);
 
   batch_mul_tw_ij<<<batch_size, n>>>(d_inout, d_full_twf, n, batch_size);
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  ntt_batch(d_inout, d_twf, n, batch_size);
+  ntt_batch_b(d_inout, d_twf, n, batch_size);
   reverse_order_batch(d_inout, n, logn, batch_size);
 
   transpose<<<blocks, threads>>>(d_inout);
