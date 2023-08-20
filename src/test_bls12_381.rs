@@ -1649,26 +1649,6 @@ pub(crate) mod tests_bls12_381 {
 
         assert_eq!(h_coeffs_bailey, h_coeffs_fast);
 
-        return;
-
-        let mut d_evals = d_coeffs_bailey;
-        let d_coeffs_domain =
-            interpolate_scalars_batch_bls12_381(&mut d_evals, &mut d_domain_inv, batch_size);
-        let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
-        d_coeffs_domain.copy_to(&mut h_coeffs_domain[..]).unwrap();
-
-        for j in 0..batch_size {
-            assert_eq!(
-                h_coeffs[j * coeff_size..(j + 1) * coeff_size][3],
-                h_coeffs_domain[j * domain_size..j * domain_size + coeff_size][3]
-            );
-            for i in coeff_size..domain_size {
-                assert_eq!(
-                    ScalarField_BLS12_381::zero(),
-                    h_coeffs_domain[j * domain_size + i]
-                );
-            }
-        }
     }
 
     #[test]
