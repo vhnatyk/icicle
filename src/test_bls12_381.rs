@@ -1631,19 +1631,16 @@ pub(crate) mod tests_bls12_381 {
         let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
 
         let mut d_coeffs_bailey = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
-        reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
         
         fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
         reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
 
-        reverse_order_scalars_batch_bls12_381(&mut d_coeffs_bailey, batch_size);
         bailey_ntt_bls12_381(
             &mut d_coeffs_bailey,
             &mut d_bailey_domain,
             &mut d_domain,
             1 << log_test_domain_size / 2,
         );
-
 
         let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> = vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
         d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
