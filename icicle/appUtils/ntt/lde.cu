@@ -288,17 +288,15 @@ int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_s
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  // reverse_order_batch(d_inout, n, logn, batch_size);
-  ntt_batch_bc(d_inout, d_twf, n, batch_size, r1, t1, tt1);
   reverse_order_batch(d_inout, n, logn, batch_size);
+  ntt_batch_bc(d_inout, d_twf, n, batch_size, r1, t1, tt1);
 
   batch_mul_tw_ij<<<batch_size, n>>>(d_inout, d_full_twf, n, batch_size);
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  // reverse_order_batch(d_inout, n, logn, batch_size);
-  ntt_batch_bc(d_inout, d_twf, n, batch_size, r2, t2, tt2);
   reverse_order_batch(d_inout, n, logn, batch_size);
+  ntt_batch_bc(d_inout, d_twf, n, batch_size, r2, t2, tt2);
 
   transpose<<<blocks, threads>>>(d_inout);
 
