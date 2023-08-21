@@ -1669,11 +1669,121 @@ pub(crate) mod tests_bls12_381 {
     }
 
     #[test]
-    fn test_scalar_bailey_ntt() {
+    fn test_scalar_ntt_ordering() {
         let batch_size = 2;
         let log_test_domain_size = 8;
         let domain_size = 1 << log_test_domain_size;
         let coeff_size = domain_size;
+
+        let mut ss = 0;
+        let mut i = 0;
+        let full_size = domain_size * batch_size;
+
+        let (h_coeffs, _, mut d_domain) =
+            set_up_scalars_bls12_381(domain_size * batch_size, log_test_domain_size, false);
+
+        fn iter_test(
+            iter: &[bool],
+            h_coeffs: &[Field_BLS12_381<8>],
+            mut d_domain: &mut DeviceBuffer<ScalarField_BLS12_381>,
+            full_size: usize,
+            batch_size: usize,
+            ss: &mut i32,
+            i: usize,
+        ) {
+            let r1 = iter[0];
+            let t1 = iter[1];
+            let tt1 = iter[2];
+            let r2 = iter[3];
+            let t2 = iter[4];
+            let tt2 = iter[5];
+            let tr1 = iter[6];
+            let ttr1 = iter[7];
+            let tr2 = iter[8];
+            let ttr2 = iter[9];
+
+            assert_eq!(
+                r1 == r2 && t1 == t2 && tt1 == tt2 && tr1 == tr2 && ttr1 == ttr2,
+                false,
+                "equal params"
+            );
+
+            let mut d_coeffs = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
+            let mut d_coeffs_other = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
+
+            if tr1 {
+                reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+            }
+            fast_ntt_bc_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size, r1, t1, tt1);
+            if ttr1 {
+                reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+            }
+
+            // bailey_ntt_bls12_381(
+            //     &mut d_coeffs_bailey,
+            //     &mut d_bailey_domain,
+            //     &mut d_domain,
+            //     1 << log_test_domain_size / 2,
+            // );
+
+            if tr2 {
+                reverse_order_scalars_batch_bls12_381(&mut d_coeffs_other, batch_size);
+            }
+            fast_ntt_bc_batch_bls12_381(&mut d_coeffs_other, &mut d_domain, batch_size, r2, t2, tt2);
+            if ttr2 {
+                reverse_order_scalars_batch_bls12_381(&mut d_coeffs_other, batch_size);
+            }
+
+            let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> =
+                vec![ScalarField_BLS12_381::zero(); full_size];
+            d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
+            let mut h_coeffs_bailey: Vec<ScalarField_BLS12_381> =
+                vec![ScalarField_BLS12_381::zero(); full_size];
+            d_coeffs_other.copy_to(&mut h_coeffs_bailey[..]).unwrap();
+
+            if h_coeffs_bailey == h_coeffs_fast {
+                *ss += 1;
+                println!(
+                    "i: {} ss {} r1 {}, t1 {}, tt1 {}, r2 {}, t2 {}, tt2 {}, tr1 {}, tr2 {}, ttr1 {}, ttr2 {}",
+                    i, ss, r1, t1, tt1, r2, t2, tt2, tr1, tr2, ttr1, ttr2
+                );
+            }
+        }
+
+        iter_test(
+            &[
+                true, true, true, false, true, false, false, true, true, false,
+            ],
+            &h_coeffs,
+            &mut d_domain,
+            full_size,
+            batch_size,
+            &mut ss,
+            i,
+        );
+
+        // for r1 in [true, false] {
+        //     for t1 in [true, false] {
+        //         for tt1 in [true, false] {
+        //             for r2 in [true, false] {
+        //                 for t2 in [true, false] {
+        //                     for tt2 in [true, false] {
+        //                         i += 1;
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        assert_ne!(ss, 0, "failed")
+    }
+
+    #[test]
+    fn test_scalar_bailey_ntt() {
+        let batch_size = 2;
+        let log_test_domain_size = 8;
+        let domain_size = 1 << log_test_domain_size;
+        // let coeff_size = domain_size;
 
         let mut ss = 0;
         let mut i = 0;
