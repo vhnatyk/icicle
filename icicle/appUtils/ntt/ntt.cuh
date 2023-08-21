@@ -611,8 +611,8 @@ HOST_DEVICE_INLINE void butterfly_bc(E* u, E* v, S* w, bool input_rbo, bool outp
         *v = *u - (*v * (*w));
     } else {
         // Input Natural, Output Natural
-        E sum = *u + *v;
-        *v = *u - (*v * (*w));
+        E sum = *u - *v;
+        *v = *u - *v;
         *u = sum;
     }
 }

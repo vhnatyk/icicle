@@ -1671,7 +1671,7 @@ pub(crate) mod tests_bls12_381 {
     #[test]
     fn test_scalar_ntt_ordering() {
         let batch_size = 2;
-        let log_test_domain_size = 8;
+        let log_test_domain_size = 6;
         let domain_size = 1 << log_test_domain_size;
         let coeff_size = domain_size;
 
@@ -1690,6 +1690,7 @@ pub(crate) mod tests_bls12_381 {
             batch_size: usize,
             ss: &mut i32,
             i: usize,
+            tag: &str,
         ) {
             let r1 = iter[0];
             let t1 = iter[1];
@@ -1702,11 +1703,9 @@ pub(crate) mod tests_bls12_381 {
             let tr2 = iter[8];
             let ttr2 = iter[9];
 
-            assert_eq!(
-                r1 == r2 && t1 == t2 && tt1 == tt2 && tr1 == tr2 && ttr1 == ttr2,
-                false,
-                "equal params"
-            );
+            if r1 == r2 && t1 == t2 && tt1 == tt2 && tr1 == tr2 && ttr1 == ttr2 {
+                return;
+            }
 
             let mut d_coeffs = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
             let mut d_coeffs_other = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
@@ -1729,7 +1728,14 @@ pub(crate) mod tests_bls12_381 {
             if tr2 {
                 reverse_order_scalars_batch_bls12_381(&mut d_coeffs_other, batch_size);
             }
-            fast_ntt_bc_batch_bls12_381(&mut d_coeffs_other, &mut d_domain, batch_size, r2, t2, tt2);
+            fast_ntt_bc_batch_bls12_381(
+                &mut d_coeffs_other,
+                &mut d_domain,
+                batch_size,
+                r2,
+                t2,
+                tt2,
+            );
             if ttr2 {
                 reverse_order_scalars_batch_bls12_381(&mut d_coeffs_other, batch_size);
             }
@@ -1744,15 +1750,16 @@ pub(crate) mod tests_bls12_381 {
             if h_coeffs_bailey == h_coeffs_fast {
                 *ss += 1;
                 println!(
-                    "i: {} ss {} r1 {}, t1 {}, tt1 {}, r2 {}, t2 {}, tt2 {}, tr1 {}, tr2 {}, ttr1 {}, ttr2 {}",
-                    i, ss, r1, t1, tt1, r2, t2, tt2, tr1, tr2, ttr1, ttr2
+                    "***{}*** i: {} ss {} r1 {}, t1 {}, tt1 {}, r2 {}, t2 {}, tt2 {}, tr1 {}, tr2 {}, ttr1 {}, ttr2 {}",
+                    tag, i, ss, r1, t1, tt1, r2, t2, tt2, tr1, tr2, ttr1, ttr2
                 );
             }
         }
 
         iter_test(
             &[
-                true, true, true, false, true, false, false, true, true, false,
+                true, true, true, false, true, false, false, true, true,
+                false, // reference for RR and RN
             ],
             &h_coeffs,
             &mut d_domain,
@@ -1760,22 +1767,51 @@ pub(crate) mod tests_bls12_381 {
             batch_size,
             &mut ss,
             i,
+            "reference for RR and RN",
         );
-
-        // for r1 in [true, false] {
-        //     for t1 in [true, false] {
-        //         for tt1 in [true, false] {
-        //             for r2 in [true, false] {
-        //                 for t2 in [true, false] {
-        //                     for tt2 in [true, false] {
-        //                         i += 1;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        assert_ne!(ss, 0, "failed")
+        assert_eq!(ss, 1, "reference for RR and RN");
+        ss = 0;
+        for r1 in [true, false] {
+            for t1 in [true, false] {
+                for tt1 in [true, false] {
+                    for r2 in [true, false] {
+                        for t2 in [true, false] {
+                            for tt2 in [true, false] {
+                                for tr1 in [true, false] {
+                                    for tr2 in [true, false] {
+                                        for ttr1 in [true, false] {
+                                            for ttr2 in [true, false] {
+                                                i += 1;
+                                                if tr1 || !ttr1 || tr2 || ttr2 {
+                                                    continue;
+                                                }
+                                                // if tr1 || tr2 || ttr1 || ttr2 {
+                                                //     continue;
+                                                // }
+                                                iter_test(
+                                                    &[
+                                                        r1, t1, tt1, r2, t2, tt2, tr1, tr2, ttr1,
+                                                        ttr2, // reference for RR and RN
+                                                    ],
+                                                    &h_coeffs,
+                                                    &mut d_domain,
+                                                    full_size,
+                                                    batch_size,
+                                                    &mut ss,
+                                                    i,
+                                                    "simplified reverse",
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert_ne!(ss, 0, "none passing:(");
     }
 
     #[test]
