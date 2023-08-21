@@ -30,11 +30,13 @@ int interpolate_batch(E *d_out, E *d_evaluations, S *d_domain, unsigned n, unsig
   int max_sharedmem = 512 * sizeof(E);
   int shared_mem = 2 * NUM_THREADS * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
   uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
-  ntt_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_out, 1 << logn_shmem, d_domain, n, total_tasks, 0, logn_shmem, false);
+  // ntt_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_out, 1 << logn_shmem, d_domain, n, total_tasks, 0, logn_shmem, false);
 
-  for (uint32_t s = logn_shmem; s < logn; s++) // TODO: this loop also can be unrolled
+  // for (uint32_t s = logn_shmem; s < logn; s++) // TODO: this loop also can be unrolled
+  //for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
+  for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
   {
-    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, n, d_domain, n, total_tasks, s, false);
+    ntt_template_kernel_bc<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, n, d_domain, n, total_tasks, s, true, false);
   }
 
   NUM_BLOCKS = (n * batch_size + NUM_THREADS - 1) / NUM_THREADS;
@@ -173,8 +175,10 @@ int evaluate_batch(E *d_out, E *d_coefficients, S *d_domain, unsigned domain_siz
   for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
   // for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
   {
-    ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s - 1, true);
-    // ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s, false);
+    // ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s - 1, true);
+    //  ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, domain_size, d_domain, domain_size, total_tasks, s, false);
+
+    ntt_template_kernel_bc<<<NUM_BLOCKS, NUM_THREADS>>>(d_out, n, d_domain, n, total_tasks, s - 1, true, true);
   }
 
   // uint32_t log2_num_blocks = (log(NUM_BLOCKS) / log(2));
@@ -224,7 +228,7 @@ int ntt_batch_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
 }
 
 template <typename E, typename S>
-int ntt_batch_bc_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size, bool r, bool t)
+int ntt_batch_bc_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size, bool r, bool t, bool tt)
 {
   uint32_t logn = uint32_t(log(n) / log(2));
 
@@ -241,7 +245,7 @@ int ntt_batch_bc_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size,
     // for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
     for (uint32_t s = logn; s > 0; s--) // TODO: this loop also can be unrolled
     {
-      ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s - 1, t);
+      ntt_template_kernel_bc<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s - 1, t, tt);
     }
   }
   else
@@ -249,7 +253,7 @@ int ntt_batch_bc_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size,
     // for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
     for (uint32_t s = 0; s < logn; s++) // TODO: this loop also can be unrolled
     {
-      ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s, t);
+      ntt_template_kernel_bc<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s, t, tt);
     }
   }
 
@@ -263,9 +267,9 @@ int ntt_batch_bc_template(E *d_inout, S *d_twf, unsigned n, unsigned batch_size,
 }
 
 template <typename S>
-int ntt_batch_bc(S *d_inout, S *d_twf, unsigned n, unsigned batch_size, bool r, bool t)
+int ntt_batch_bc(S *d_inout, S *d_twf, unsigned n, unsigned batch_size, bool r, bool t, bool tt)
 {
-  return ntt_batch_bc_template(d_inout, d_twf, n, batch_size, r, t);
+  return ntt_batch_bc_template(d_inout, d_twf, n, batch_size, r, t, tt);
 }
 
 template <typename S>
@@ -275,7 +279,7 @@ int ntt_batch(S *d_inout, S *d_twf, unsigned n, unsigned batch_size)
 }
 
 template <typename S>
-int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_size)
+int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_size, bool r1, bool t1, bool tt1, bool r2, bool t2, bool tt2)
 {
   uint32_t logn = uint32_t(log(n) / log(2));
 
@@ -284,14 +288,16 @@ int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_s
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  ntt_batch(d_inout, d_twf, n, batch_size);
+  // reverse_order_batch(d_inout, n, logn, batch_size);
+  ntt_batch_bc(d_inout, d_twf, n, batch_size, r1, t1, tt1);
   reverse_order_batch(d_inout, n, logn, batch_size);
 
   batch_mul_tw_ij<<<batch_size, n>>>(d_inout, d_full_twf, n, batch_size);
 
   transpose<<<blocks, threads>>>(d_inout);
 
-  ntt_batch(d_inout, d_twf, n, batch_size);
+  // reverse_order_batch(d_inout, n, logn, batch_size);
+  ntt_batch_bc(d_inout, d_twf, n, batch_size, r2, t2, tt2);
   reverse_order_batch(d_inout, n, logn, batch_size);
 
   transpose<<<blocks, threads>>>(d_inout);

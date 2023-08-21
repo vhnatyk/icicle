@@ -55,6 +55,12 @@ fn bench_ntt(c: &mut Criterion) {
                     d_domain,
                     d_domain_full,
                     d_domain_full.len() / d_domain.len(),
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
                 );
                 unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() }
             }

@@ -591,6 +591,81 @@ __global__ void ntt_template_kernel(E *arr, uint32_t n, S *twiddles, uint32_t n_
   }
 }
 
+template <typename E, typename S>
+HOST_DEVICE_INLINE void butterfly_bc(E* u, E* v, S* w, bool input_rbo, bool output_rbo) {
+    if (input_rbo && output_rbo) {
+        // Input RBO, Output RBO
+        E diff = *u - *v;
+        *u = *u + *v;
+        *v = diff * (*w);
+    } else if (input_rbo && !output_rbo) {
+        // Input RBO, Output Natural
+        // *v = *u - (*v * (*w));
+        // *u = *u + *v;
+        E vv = (*v * (*w));
+        *v = *u - vv;
+        *u = *u + vv;
+    } else if (!input_rbo && output_rbo) {
+        // Input Natural, Output RBO
+        *u = *u + *v;
+        *v = *u - (*v * (*w));
+    } else {
+        // Input Natural, Output Natural
+        E sum = *u + *v;
+        *v = *u - (*v * (*w));
+        *u = sum;
+    }
+}
+
+/**
+ * Cooley-Tukey NTT.
+ * NOTE! this function assumes that d_twiddles are located in the device memory.
+ * @param arr input array of type E (elements).
+ * @param n length of d_arr.
+ * @param twiddles twiddle factors of type S (scalars) array allocated on the device memory (must be a power of 2).
+ * @param n_twiddles length of twiddles.
+ * @param max_task max count of parallel tasks.
+ * @param s log2(n) loop index.
+ */
+template <typename E, typename S>
+__global__ void ntt_template_kernel_bc(E *arr, uint32_t n, S *twiddles, uint32_t n_twiddles, uint32_t max_task, uint32_t s, bool input_rbo, bool output_rbo)
+{
+  int task = blockIdx.x;
+  int chunks = n / (blockDim.x * 2);
+
+  if (task < max_task)
+  {
+    // flattened loop allows parallel processing
+    uint32_t l = threadIdx.x;
+    uint32_t loop_limit = blockDim.x;
+
+    if (l < loop_limit)
+    {
+      uint32_t ntw_i = task % chunks;
+
+      uint32_t shift_s = 1 << s;
+      uint32_t shift2_s = 1 << (s + 1);
+      uint32_t n_twiddles_div = n_twiddles >> (s + 1);
+
+      l = ntw_i * blockDim.x + l; // to l from chunks to full
+
+      uint32_t j = l & (shift_s - 1);               // Equivalent to: l % (1 << s)
+      uint32_t i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
+      uint32_t k = i + j + shift_s;
+
+      uint32_t offset = (task / chunks) * n;
+      // E u = arr[offset + i + j];
+      // E v = rev ? arr[offset + k] : twiddles[j * n_twiddles_div] * arr[offset + k];
+      // arr[offset + i + j] = u + v;
+      // arr[offset + k] = u - v;
+      // if (rev)
+      //   arr[offset + k] = twiddles[j * n_twiddles_div] * arr[offset + k];
+
+      butterfly_bc(&arr[offset+ i + j], &arr[offset + k], &twiddles[j * n_twiddles_div], input_rbo, output_rbo);
+    }
+  }
+}
+
 /**
  * Cooley-Tukey NTT.
  * NOTE! this function assumes that d_twiddles are located in the device memory.
