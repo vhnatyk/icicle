@@ -592,28 +592,28 @@ __global__ void ntt_template_kernel(E *arr, uint32_t n, S *twiddles, uint32_t n_
 }
 
 template <typename E, typename S>
-HOST_DEVICE_INLINE void butterfly_bc(E* u, E* v, S* w, bool input_rbo, bool output_rbo) {
-    if (input_rbo && output_rbo) {
+HOST_DEVICE_INLINE void butterfly_bc(E* u, E* v, S* w, bool rev) {
+    if (rev) {
         // Input RBO, Output RBO
         E diff = *u - *v;
         *u = *u + *v;
         *v = diff * (*w);
-    } else if (input_rbo && !output_rbo) {
+    } else {
         // Input RBO, Output Natural
         // *v = *u - (*v * (*w));
         // *u = *u + *v;
         E vv = (*v * (*w));
         *v = *u - vv;
         *u = *u + vv;
-    } else if (!input_rbo && output_rbo) {
-        // Input Natural, Output RBO
-        *u = *u + *v;
-        *v = *u - (*v * (*w));
-    } else {
-        // Input Natural, Output Natural
-        E sum = *u - *v;
-        *v = *u - *v;
-        *u = sum;
+    // } else if (!rev && output_rbo) {
+    //     // // Input Natural, Output RBO
+    //     // *u = *u + *v;
+    //     // *v = *u - (*v * (*w));
+    // } else {
+    //     // // Input Natural, Output Natural
+    //     // E sum = *u - *v;
+    //     // *v = *u - *v;
+    //     // *u = sum;
     }
 }
 
@@ -628,7 +628,7 @@ HOST_DEVICE_INLINE void butterfly_bc(E* u, E* v, S* w, bool input_rbo, bool outp
  * @param s log2(n) loop index.
  */
 template <typename E, typename S>
-__global__ void ntt_template_kernel_bc(E *arr, uint32_t n, S *twiddles, uint32_t n_twiddles, uint32_t max_task, uint32_t s, bool input_rbo, bool output_rbo)
+__global__ void ntt_template_kernel_bc(E *arr, uint32_t n, S *twiddles, uint32_t n_twiddles, uint32_t max_task, uint32_t s, bool rev)
 {
   int task = blockIdx.x;
   int chunks = n / (blockDim.x * 2);
@@ -661,7 +661,7 @@ __global__ void ntt_template_kernel_bc(E *arr, uint32_t n, S *twiddles, uint32_t
       // if (rev)
       //   arr[offset + k] = twiddles[j * n_twiddles_div] * arr[offset + k];
 
-      butterfly_bc(&arr[offset+ i + j], &arr[offset + k], &twiddles[j * n_twiddles_div], input_rbo, output_rbo);
+      butterfly_bc(&arr[offset+ i + j], &arr[offset + k], &twiddles[j * n_twiddles_div], rev);
     }
   }
 }

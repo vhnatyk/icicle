@@ -177,11 +177,11 @@ extern "C" int fast_ntt_batch_cuda_bls12_381(BLS12_381::scalar_t *d_inout, BLS12
     }
 }
 
-extern "C" int fast_ntt_batch_bc_cuda_bls12_381(BLS12_381::scalar_t *d_inout, BLS12_381::scalar_t *d_twf, uint32_t n, uint32_t batch_size, bool r, bool t, bool tt, size_t device_id = 0)
+extern "C" int fast_ntt_batch_bc_cuda_bls12_381(BLS12_381::scalar_t *d_inout, BLS12_381::scalar_t *d_twf, uint32_t n, uint32_t batch_size, bool r, bool t, size_t device_id = 0)
 {
     try
     {
-        return ntt_batch_bc(d_inout, d_twf, n, batch_size, r, t, tt); // TODO: pass device_id
+        return ntt_batch_bc(d_inout, d_twf, n, batch_size, r, t); // TODO: pass device_id
     }
     catch (const std::runtime_error &ex)
     {

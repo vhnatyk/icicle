@@ -90,7 +90,6 @@ extern "C" {
         batch_size: usize,
         r: bool,
         t: bool,
-        tt: bool,
         device_id: usize,
     ) -> c_int;
 
@@ -102,10 +101,8 @@ extern "C" {
         batch_size: usize,
         r1: bool,
         t1: bool,
-        tt1: bool,
         r2: bool,
         t2: bool,
-        tt2: bool,
         device_id: usize,
     ) -> c_int;
 
@@ -434,7 +431,7 @@ pub fn fast_ntt_bc_batch_bls12_381(
     batch_size: usize,
     r: bool,
     t: bool,
-    tt: bool,
+    // tt: bool,
 ) {
     unsafe {
         fast_ntt_batch_bc_cuda_bls12_381(
@@ -444,7 +441,7 @@ pub fn fast_ntt_bc_batch_bls12_381(
             batch_size,
             r,
             t,
-            tt,
+            // tt,
             0,
         );
     }
@@ -475,10 +472,8 @@ pub fn bailey_ntt_bls12_381(
     batch_size: usize,
     r1: bool,
     t1: bool,
-    tt1: bool,
     r2: bool,
     t2: bool,
-    tt2: bool,
 ) {
     unsafe {
         bailey_ntt_cuda_bls12_381(
@@ -489,10 +484,8 @@ pub fn bailey_ntt_bls12_381(
             batch_size,
             r1,
             t1,
-            tt1,
             r2,
             t2,
-            tt2,
             0,
         );
     }
@@ -1694,16 +1687,14 @@ pub(crate) mod tests_bls12_381 {
         ) {
             let r1 = iter[0];
             let t1 = iter[1];
-            let tt1 = iter[2];
-            let r2 = iter[3];
-            let t2 = iter[4];
-            let tt2 = iter[5];
-            let tr1 = iter[6];
-            let ttr1 = iter[7];
-            let tr2 = iter[8];
-            let ttr2 = iter[9];
+            let r2 = iter[2];
+            let t2 = iter[3];
+            let tr1 = iter[4];
+            let ttr1 = iter[5];
+            let tr2 = iter[6];
+            let ttr2 = iter[7];
 
-            if r1 == r2 && t1 == t2 && tt1 == tt2 && tr1 == tr2 && ttr1 == ttr2 {
+            if r1 == r2 && t1 == t2 && tr1 == tr2 && ttr1 == ttr2 {
                 return;
             }
 
@@ -1713,7 +1704,7 @@ pub(crate) mod tests_bls12_381 {
             if tr1 {
                 reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
             }
-            fast_ntt_bc_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size, r1, t1, tt1);
+            fast_ntt_bc_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size, r1, t1);
             if ttr1 {
                 reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
             }
@@ -1728,14 +1719,7 @@ pub(crate) mod tests_bls12_381 {
             if tr2 {
                 reverse_order_scalars_batch_bls12_381(&mut d_coeffs_other, batch_size);
             }
-            fast_ntt_bc_batch_bls12_381(
-                &mut d_coeffs_other,
-                &mut d_domain,
-                batch_size,
-                r2,
-                t2,
-                tt2,
-            );
+            fast_ntt_bc_batch_bls12_381(&mut d_coeffs_other, &mut d_domain, batch_size, r2, t2);
             if ttr2 {
                 reverse_order_scalars_batch_bls12_381(&mut d_coeffs_other, batch_size);
             }
@@ -1749,10 +1733,10 @@ pub(crate) mod tests_bls12_381 {
 
             if h_coeffs_bailey == h_coeffs_fast {
                 println!(
-                    "***{}*** i: {} ss {} r1 {}, t1 {}, tt1 {}, r2 {}, t2 {}, tt2 {}, tr1 {}, tr2 {}, ttr1 {}, ttr2 {}",
-                    tag, i, ss, r1, t1, tt1, r2, t2, tt2, tr1, tr2, ttr1, ttr2
+                    "***{}*** i: {} ss {} r1 {}, t1 {}, r2 {}, t2 {}, tr1 {}, tr2 {}, ttr1 {}, ttr2 {}",
+                    tag, i, ss, r1, t1, r2, t2, tr1, tr2, ttr1, ttr2
                 );
-                if r1 == r2 && t1 == t2 && tt1 == tt2 && (tr1 != tr2 || ttr1 != ttr2) {
+                if r1 == r2 && t1 == t2 && (tr1 != tr2 || ttr1 != ttr2) {
                     assert!(false, "different reverse with equal input params")
                 } else {
                     *ss += 1;
@@ -1777,36 +1761,32 @@ pub(crate) mod tests_bls12_381 {
         ss = 0;
         for r1 in [true, false] {
             for t1 in [true, false] {
-                for tt1 in [true, false] {
-                    for r2 in [true, false] {
-                        for t2 in [true, false] {
-                            for tt2 in [true, false] {
-                                for tr1 in [true, false] {
-                                    for tr2 in [true, false] {
-                                        for ttr1 in [true, false] {
-                                            for ttr2 in [true, false] {
-                                                i += 1;
-                                                if tr1 || !ttr1 || tr2 || ttr2 {
-                                                    continue;
-                                                }
-                                                // if tr1 || tr2 || ttr1 || ttr2 {
-                                                //     continue;
-                                                // }
-                                                iter_test(
-                                                    &[
-                                                        r1, t1, tt1, r2, t2, tt2, tr1, tr2, ttr1,
-                                                        ttr2, // reference for RR and RN
-                                                    ],
-                                                    &h_coeffs,
-                                                    &mut d_domain,
-                                                    full_size,
-                                                    batch_size,
-                                                    &mut ss,
-                                                    i,
-                                                    "simplified reverse",
-                                                );
-                                            }
+                for r2 in [true, false] {
+                    for t2 in [true, false] {
+                        for tr1 in [true, false] {
+                            for tr2 in [true, false] {
+                                for ttr1 in [true, false] {
+                                    for ttr2 in [true, false] {
+                                        i += 1;
+                                        if tr1 || !ttr1 || tr2 || ttr2 {
+                                            continue;
                                         }
+                                        // if tr1 || tr2 || ttr1 || ttr2 {
+                                        //     continue;
+                                        // }
+                                        iter_test(
+                                            &[
+                                                r1, t1, r2, t2, tr1, tr2, ttr1,
+                                                ttr2, // reference for RR and RN
+                                            ],
+                                            &h_coeffs,
+                                            &mut d_domain,
+                                            full_size,
+                                            batch_size,
+                                            &mut ss,
+                                            i,
+                                            "simplified reverse",
+                                        );
                                     }
                                 }
                             }
@@ -1833,80 +1813,64 @@ pub(crate) mod tests_bls12_381 {
 
         for r1 in [true, false] {
             for t1 in [true, false] {
-                for tt1 in [true, false] {
-                    for r2 in [true, false] {
-                        for t2 in [true, false] {
-                            for tt2 in [true, false] {
-                                i += 1;
+                for r2 in [true, false] {
+                    for t2 in [true, false] {
+                        i += 1;
 
-                                // let (_, _, mut d_bailey_domain) =
-                                //     set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
+                        // let (_, _, mut d_bailey_domain) =
+                        //     set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
 
-                                // let (_, _, mut d_bailey_inv_domain) =
-                                //     set_up_scalars_bls12_381(0, log_test_domain_size, true);
-                                let mut d_coeffs = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
-                                let mut d_coeffs_bailey =
-                                    DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
+                        // let (_, _, mut d_bailey_inv_domain) =
+                        //     set_up_scalars_bls12_381(0, log_test_domain_size, true);
+                        let mut d_coeffs = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
+                        let mut d_coeffs_bailey = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
 
-                                // fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
-                                // reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+                        // fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
+                        // reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
 
-                                //reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
-                                fast_ntt_bc_batch_bls12_381(
-                                    &mut d_coeffs,
-                                    &mut d_domain,
-                                    batch_size,
-                                    // true,
-                                    // true,
-                                    // false,
-                                    r1,
-                                    t1,
-                                    tt1,
-                                );
-                                reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+                        //reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
+                        fast_ntt_bc_batch_bls12_381(
+                            &mut d_coeffs,
+                            &mut d_domain,
+                            batch_size,
+                            r1,
+                            t1,
+                        );
+                        reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
 
-                                // bailey_ntt_bls12_381(
-                                //     &mut d_coeffs_bailey,
-                                //     &mut d_bailey_domain,
-                                //     &mut d_domain,
-                                //     1 << log_test_domain_size / 2,
-                                // );
+                        // bailey_ntt_bls12_381(
+                        //     &mut d_coeffs_bailey,
+                        //     &mut d_bailey_domain,
+                        //     &mut d_domain,
+                        //     1 << log_test_domain_size / 2,
+                        // );
 
-                                reverse_order_scalars_batch_bls12_381(
-                                    &mut d_coeffs_bailey,
-                                    batch_size,
-                                );
-                                fast_ntt_bc_batch_bls12_381(
-                                    &mut d_coeffs_bailey,
-                                    &mut d_domain,
-                                    batch_size,
-                                    // true,
-                                    // true,
-                                    // false,
-                                    r2,
-                                    t2,
-                                    tt2,
-                                );
-                                // reverse_order_scalars_batch_bls12_381(
-                                //     &mut d_coeffs_bailey,
-                                //     batch_size,
-                                // );
+                        reverse_order_scalars_batch_bls12_381(&mut d_coeffs_bailey, batch_size);
+                        fast_ntt_bc_batch_bls12_381(
+                            &mut d_coeffs_bailey,
+                            &mut d_domain,
+                            batch_size,
+                            r2,
+                            t2,
+                        );
+                        // reverse_order_scalars_batch_bls12_381(
+                        //     &mut d_coeffs_bailey,
+                        //     batch_size,
+                        // );
 
-                                let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> =
-                                    vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
-                                d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
-                                let mut h_coeffs_bailey: Vec<ScalarField_BLS12_381> =
-                                    vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
-                                d_coeffs_bailey.copy_to(&mut h_coeffs_bailey[..]).unwrap();
+                        let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> =
+                            vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+                        d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
+                        let mut h_coeffs_bailey: Vec<ScalarField_BLS12_381> =
+                            vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+                        d_coeffs_bailey.copy_to(&mut h_coeffs_bailey[..]).unwrap();
 
-                                if h_coeffs_bailey == h_coeffs_fast {
-                                    ss += 1;
-                                    println!(
-                                        "i: {} ss {} r1 {}, t1 {}, tt1 {}, r2 {}, t2 {}, tt2 {}",
-                                        i, ss, r1, t1, tt1, r2, t2, tt2,
-                                    );
-                                }
-                            }
+                        if h_coeffs_bailey == h_coeffs_fast {
+                            ss += 1;
+                            println!(
+                                "i: {} ss {} r1 {}, t1 {}, r2 {}, t2 {}",
+                                i, ss, r1, t1, r2, t2,
+                            );
                         }
                     }
                 }
@@ -1933,108 +1897,90 @@ pub(crate) mod tests_bls12_381 {
                     for rr4 in [true, false] {
                         for r1 in [true, false] {
                             for t1 in [true, false] {
-                                for tt1 in [true, false] {
-                                    for r2 in [true, false] {
-                                        for t2 in [true, false] {
-                                            for tt2 in [true, false] {
-                                                for r3 in [true, false] {
-                                                    for t3 in [true, false] {
-                                                        for tt3 in [true, false] {
-                                                            i += 1;
+                                for r2 in [true, false] {
+                                    for t2 in [true, false] {
+                                        for r3 in [true, false] {
+                                            for t3 in [true, false] {
+                                                i += 1;
 
-                                                            let mut d_coeffs =
-                                                                DeviceBuffer::from_slice(
-                                                                    &h_coeffs[..],
-                                                                )
-                                                                .unwrap();
-                                                            let mut d_coeffs_bailey =
-                                                                DeviceBuffer::from_slice(
-                                                                    &h_coeffs[..],
-                                                                )
-                                                                .unwrap();
+                                                let mut d_coeffs =
+                                                    DeviceBuffer::from_slice(&h_coeffs[..])
+                                                        .unwrap();
+                                                let mut d_coeffs_bailey =
+                                                    DeviceBuffer::from_slice(&h_coeffs[..])
+                                                        .unwrap();
 
-                                                            if rr1 {
-                                                                reverse_order_scalars_batch_bls12_381(
-                                                                &mut d_coeffs,
-                                                                batch_size,
-                                                            );
-                                                            }
-                                                            fast_ntt_bc_batch_bls12_381(
-                                                                &mut d_coeffs,
-                                                                &mut d_domain,
-                                                                batch_size,
-                                                                r3,
-                                                                t3,
-                                                                tt3,
-                                                            );
-                                                            if rr2 {
-                                                                reverse_order_scalars_batch_bls12_381(
-                                                                &mut d_coeffs,
-                                                                batch_size,
-                                                            );
-                                                            }
+                                                if rr1 {
+                                                    reverse_order_scalars_batch_bls12_381(
+                                                        &mut d_coeffs,
+                                                        batch_size,
+                                                    );
+                                                }
+                                                fast_ntt_bc_batch_bls12_381(
+                                                    &mut d_coeffs,
+                                                    &mut d_domain,
+                                                    batch_size,
+                                                    r3,
+                                                    t3,
+                                                );
+                                                if rr2 {
+                                                    reverse_order_scalars_batch_bls12_381(
+                                                        &mut d_coeffs,
+                                                        batch_size,
+                                                    );
+                                                }
 
-                                                            if rr3 {
-                                                                reverse_order_scalars_batch_bls12_381(
-                                                                &mut d_coeffs_bailey,
-                                                                batch_size,
-                                                            );
-                                                            }
-                                                            bailey_ntt_bls12_381(
-                                                                &mut d_coeffs_bailey,
-                                                                &mut d_bailey_domain,
-                                                                &mut d_domain,
-                                                                1 << log_test_domain_size / 2,
-                                                                r1,
-                                                                t1,
-                                                                tt1,
-                                                                r2,
-                                                                t2,
-                                                                tt2,
-                                                            );
-                                                            if rr4 {
-                                                                reverse_order_scalars_batch_bls12_381(
-                                                                &mut d_coeffs_bailey,
-                                                                batch_size,
-                                                            );
-                                                            }
-                                                            let mut h_coeffs_fast: Vec<
-                                                                ScalarField_BLS12_381,
-                                                            > = vec![
-                                                                ScalarField_BLS12_381::zero();
-                                                                domain_size * batch_size
-                                                            ];
-                                                            d_coeffs
-                                                                .copy_to(&mut h_coeffs_fast[..])
-                                                                .unwrap();
-                                                            let mut h_coeffs_bailey: Vec<
-                                                                ScalarField_BLS12_381,
-                                                            > = vec![
-                                                                ScalarField_BLS12_381::zero();
-                                                                domain_size * batch_size
-                                                            ];
-                                                            d_coeffs_bailey
-                                                                .copy_to(&mut h_coeffs_bailey[..])
-                                                                .unwrap();
+                                                if rr3 {
+                                                    reverse_order_scalars_batch_bls12_381(
+                                                        &mut d_coeffs_bailey,
+                                                        batch_size,
+                                                    );
+                                                }
+                                                bailey_ntt_bls12_381(
+                                                    &mut d_coeffs_bailey,
+                                                    &mut d_bailey_domain,
+                                                    &mut d_domain,
+                                                    1 << log_test_domain_size / 2,
+                                                    r1,
+                                                    t1,
+                                                    r2,
+                                                    t2,
+                                                );
+                                                if rr4 {
+                                                    reverse_order_scalars_batch_bls12_381(
+                                                        &mut d_coeffs_bailey,
+                                                        batch_size,
+                                                    );
+                                                }
+                                                let mut h_coeffs_fast: Vec<ScalarField_BLS12_381> =
+                                                    vec![
+                                                        ScalarField_BLS12_381::zero();
+                                                        domain_size * batch_size
+                                                    ];
+                                                d_coeffs.copy_to(&mut h_coeffs_fast[..]).unwrap();
+                                                let mut h_coeffs_bailey: Vec<
+                                                    ScalarField_BLS12_381,
+                                                > = vec![
+                                                    ScalarField_BLS12_381::zero();
+                                                    domain_size * batch_size
+                                                ];
+                                                d_coeffs_bailey
+                                                    .copy_to(&mut h_coeffs_bailey[..])
+                                                    .unwrap();
 
-                                                            if h_coeffs_bailey[3]
-                                                                == h_coeffs_fast[3]
-                                                                && h_coeffs_bailey == h_coeffs_fast
-                                                            {
-                                                                println!(
-                                                                    "!!successful i: {} rr1 {} rr2 {}, rr3 {}, rr4 {}, r1 {}, t1 {}, tt1 {}, r2 {}, t2 {}, tt2 {}, r3 {}, t3 {}, tt3 {}",
-                                                                                     i, rr1,   rr2,    rr3,    rr4,    r1,    t1,    tt1,    r2,    t2,    tt2,    r3,    t3,    tt3
+                                                if h_coeffs_bailey[3] == h_coeffs_fast[3]
+                                                    && h_coeffs_bailey == h_coeffs_fast
+                                                {
+                                                    println!(
+                                                                    "!!successful i: {} rr1 {} rr2 {}, rr3 {}, rr4 {}, r1 {}, t1 {}, r2 {}, t2 {}, r3 {}, t3 {}",
+                                                                                     i, rr1,   rr2,    rr3,    rr4,    r1,    t1,    r2,    t2,    r3,    t3,
                                                                 );
-                                                            } else if ((i as f32
-                                                                / (1 << 13) as f32)
-                                                                * 10000f32) as i32
-                                                                % 2000
-                                                                == 0
-                                                            {
-                                                                println!("i {} of  {}", i, 1 << 13);
-                                                            }
-                                                        }
-                                                    }
+                                                } else if ((i as f32 / (1 << 13) as f32) * 10000f32)
+                                                    as i32
+                                                    % 2000
+                                                    == 0
+                                                {
+                                                    println!("i {} of  {}", i, 1 << 13);
                                                 }
                                             }
                                         }
