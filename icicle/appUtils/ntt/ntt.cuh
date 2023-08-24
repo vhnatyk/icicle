@@ -305,14 +305,15 @@ __device__ __host__ void butterfly(E *arrReversed, S *omegas, uint32_t n, uint32
 }
 
 template <typename E, typename S>
-__global__ void batch_mul_tw_ij(E *element_vec, S *scalar_vec, unsigned n2, unsigned n1)
+__global__ void batch_mul_tw_ij(E *element_vec, S *scalar_vec, unsigned n2, unsigned n1, unsigned logn)
 {
   int j = threadIdx.x;
   int i = blockIdx.x;
   int tid = blockDim.x * i + j;
+  
   if (tid < n2 * n1)
   {
-    element_vec[tid] = scalar_vec[i * j] * element_vec[tid];
+    element_vec[tid] = scalar_vec[(__brev(j) >> (32 - logn)) * (__brev(i) >> (32 - logn))] * element_vec[tid];
     //     element_vec[i * n1 + j] = scalar_vec[i * j] * element_vec[i * n1 + j];
   }
 
