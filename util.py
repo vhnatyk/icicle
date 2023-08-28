@@ -116,7 +116,7 @@ if __name__ == "__main__":
     n = rr + 1
 
     # Search for a prime greater than 2^20
-    while (not is_prime(n)) or (n - 1) % 4 != 0:
+    while (not is_prime(n)) or (n - 1) % rr != 0:
         n += 1
 
     print(f"A prime greater than {rr} is {n}.")
