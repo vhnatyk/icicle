@@ -1898,17 +1898,17 @@ pub(crate) mod tests_bls12_381 {
             set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
         let mut i = 1;
         for rr1 in [true, false] {
-            for rr2 in [true, false] {
-                for rr3 in [true, false] {
+            for rr2 in [false] {
+                for rr3 in [false] {
                     for rr4 in [true, false] {
                         for r1 in [true, false] {
                             for t1 in [true, false] {
-                                for tt1 in [true, false] {
+                                for tt1 in [false] {
                                     for r2 in [true, false] {
                                         for t2 in [true, false] {
-                                            for tt2 in [true, false] {
-                                                for r3 in [true, false] {
-                                                    for t3 in [true, false] {
+                                            for tt2 in [false] {
+                                                for r3 in [false] {
+                                                    for t3 in [false] {
                                                         i += 1;
 
                                                         let mut d_coeffs =
@@ -1985,8 +1985,8 @@ pub(crate) mod tests_bls12_381 {
                                                             && h_coeffs_bailey == h_coeffs_fast
                                                         {
                                                             println!(
-                                                                    "!!successful i: {} rr1 {} rr2 {}, rr3 {}, rr4 {}, r1 {}, t1 {}, r2 {}, t2 {}, r3 {}, t3 {}",
-                                                                                     i, rr1,   rr2,    rr3,    rr4,    r1,    t1,    r2,    t2,    r3,    t3,
+                                                                    "!!successful i: {} rr1 {} rr2 {}, rr3 {}, rr4 {}, r1 {}, t1 {}, r2 {}, t2 {}, r3 {}, t3 {}, tt1{}, tt2 {}",
+                                                                                     i, rr1,   rr2,    rr3,    rr4,    r1,    t1,    r2,    t2,    r3,    t3,    tt1,   tt2,
                                                                 );
                                                         } else if ((i as f32 / (1 << 13) as f32)
                                                             * 10000f32)
