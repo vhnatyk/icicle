@@ -1899,17 +1899,18 @@ pub(crate) mod tests_bls12_381 {
         let mut i = 1;
         for rr1 in [true, false] {
             for rr2 in [true, false] {
-                for rr3 in [true, false] {
-                    for rr4 in [true, false] {
+                // for rr3 in [true, false] {
+                //     for rr4 in [true, false] {
                         for r1 in [true, false] {
                             for t1 in [true, false] {
                                 for tt1 in [true, false] {
                                     for r2 in [true, false] {
                                         for t2 in [true, false] {
                                             for tt2 in [true, false] {
-                                                for r3 in [true, false] {
-                                                    for t3 in [true, false] {
+                                                // for r3 in [true, false] {
+                                                //     for t3 in [true, false] {
                                                         i += 1;
+                                                        // if (i == 2) { println!("coeffs: {:?}", h_coeffs); }
 
                                                         let mut d_coeffs =
                                                             DeviceBuffer::from_slice(&h_coeffs[..])
@@ -1924,12 +1925,9 @@ pub(crate) mod tests_bls12_381 {
                                                                 batch_size,
                                                             );
                                                         }
-                                                        fast_ntt_bc_batch_bls12_381(
+                                                        d_coeffs = evaluate_scalars_bls12_381(
                                                             &mut d_coeffs,
                                                             &mut d_domain,
-                                                            batch_size,
-                                                            r3,
-                                                            t3,
                                                         );
                                                         if rr2 {
                                                             reverse_order_scalars_batch_bls12_381(
@@ -1938,12 +1936,12 @@ pub(crate) mod tests_bls12_381 {
                                                             );
                                                         }
 
-                                                        if rr3 {
-                                                            reverse_order_scalars_batch_bls12_381(
-                                                                &mut d_coeffs_bailey,
-                                                                batch_size,
-                                                            );
-                                                        }
+                                                        // if rr3 {
+                                                        //     reverse_order_scalars_batch_bls12_381(
+                                                        //         &mut d_coeffs_bailey,
+                                                        //         batch_size,
+                                                        //     );
+                                                        // }
                                                         bailey_ntt_bls12_381(
                                                             &mut d_coeffs_bailey,
                                                             &mut d_bailey_domain,
@@ -1956,12 +1954,12 @@ pub(crate) mod tests_bls12_381 {
                                                             t2,
                                                             tt2,
                                                         );
-                                                        if rr4 {
-                                                            reverse_order_scalars_batch_bls12_381(
-                                                                &mut d_coeffs_bailey,
-                                                                batch_size,
-                                                            );
-                                                        }
+                                                        // if rr4 {
+                                                        //     reverse_order_scalars_batch_bls12_381(
+                                                        //         &mut d_coeffs_bailey,
+                                                        //         batch_size,
+                                                        //     );
+                                                        // }
                                                         let mut h_coeffs_fast: Vec<
                                                             ScalarField_BLS12_381,
                                                         > = vec![
@@ -1977,16 +1975,18 @@ pub(crate) mod tests_bls12_381 {
                                                             ScalarField_BLS12_381::zero();
                                                             domain_size * batch_size
                                                         ];
+                                                        // if (i == 2) { println!("fast: {:?}", h_coeffs_fast); }
                                                         d_coeffs_bailey
                                                             .copy_to(&mut h_coeffs_bailey[..])
                                                             .unwrap();
+                                                        // if (i == 2) { println!("bailey: {:?}", h_coeffs_bailey); }
 
                                                         if h_coeffs_bailey[3] == h_coeffs_fast[3]
                                                             && h_coeffs_bailey == h_coeffs_fast
                                                         {
                                                             println!(
-                                                                    "!!successful i: {} rr1 {} rr2 {}, rr3 {}, rr4 {}, r1 {}, t1 {}, r2 {}, t2 {}, r3 {}, t3 {}",
-                                                                                     i, rr1,   rr2,    rr3,    rr4,    r1,    t1,    r2,    t2,    r3,    t3,
+                                                                    "!!successful i: {} rr1 {} rr2 {}, r1 {}, t1 {}, r2 {}, t2 {}, tt1 {}, tt2 {}",
+                                                                                     i, rr1,   rr2,    r1,    t1,    r2,    t2,    tt1,    tt2,
                                                                 );
                                                         } else if ((i as f32 / (1 << 13) as f32)
                                                             * 10000f32)
@@ -1999,10 +1999,10 @@ pub(crate) mod tests_bls12_381 {
                                                     }
                                                 }
                                             }
-                                        }
-                                    }
-                                }
-                            }
+                                    //     }
+                                    // }
+                            //     }
+                            // }
                         }
                     }
                 }
