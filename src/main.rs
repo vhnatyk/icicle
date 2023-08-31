@@ -118,7 +118,7 @@ fn bench_ntt() {
                 bailey_ntt,
                 "Bailey NTT",
                 false,
-                1000,
+                10,
             );
 
             // bench_template(

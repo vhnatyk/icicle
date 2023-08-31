@@ -181,7 +181,8 @@ extern "C" int bailey_ntt_cuda_bls12_381(BLS12_381::scalar_t *d_inout, BLS12_381
 {
     try
     {
-        return bailey_ntt<BLS12_381::scalar_t>(d_inout, d_twf, d_full_twf, n, batch_size); // TODO: pass device_id
+        BLS12_381::scalar_t *_null = nullptr;
+        return bailey_ntt<BLS12_381::scalar_t>(d_inout, d_twf, _null, d_full_twf, n, batch_size); // TODO: pass device_id
     }
     catch (const std::runtime_error &ex)
     {
@@ -189,6 +190,22 @@ extern "C" int bailey_ntt_cuda_bls12_381(BLS12_381::scalar_t *d_inout, BLS12_381
         return -1;
     }
 }
+
+// extern "C" int bailey_ntt_n1n2_cuda_bls12_381(BLS12_381::scalar_t *d_inout, 
+//     BLS12_381::scalar_t *d_twf_n1, BLS12_381::scalar_t *d_twf_n2, 
+//     BLS12_381::scalar_t *d_full_twf, uint32_t n1, 
+//     uint32_t n2, size_t device_id = 0)
+// {
+//     try
+//     {
+//         return bailey_ntt<BLS12_381::scalar_t>(d_inout, d_twf, d_full_twf, n, batch_size); // TODO: pass device_id
+//     }
+//     catch (const std::runtime_error &ex)
+//     {
+//         printf("error %s", ex.what());
+//         return -1;
+//     }
+// }
 
 extern "C" int bench_fr_add_cuda(size_t device_id, size_t samples, size_t blocks, size_t threads)
 {

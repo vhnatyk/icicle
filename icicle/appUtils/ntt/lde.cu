@@ -242,31 +242,38 @@ int ntt_ct_batch(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
   {
     ntt_template_kernel<<<NUM_BLOCKS, NUM_THREADS>>>(d_inout, n, d_twf, n, total_tasks, s, false);
   }
-  
+
   return 0;
 }
 
 template <typename S>
-int bailey_ntt(S *d_inout, S *d_twf, S *d_full_twf, unsigned n, unsigned batch_size)
+int bailey_ntt(S *d_inout, S *d_twf_n1, S *d_twf_n2, S *d_full_twf, unsigned n2, unsigned n1)
 {
-  uint32_t logn = uint32_t(log(n) / log(2));
+  // batch_size is n1, n is n2 - so matrix is n1 x n2
+  if (n1 == n2)
+  {
+    d_twf_n2 = d_twf_n1;
+  }
+
+  uint32_t logn = uint32_t(log(n2) / log(2));
 
   dim3 threads(TILE_DIM, BLOCK_ROWS);
-  dim3 blocks(batch_size / TILE_DIM, n / TILE_DIM);
+  dim3 blocks_n1(n2 / TILE_DIM, n1 / TILE_DIM);
+  dim3 blocks_n2(n1 / TILE_DIM, n2 / TILE_DIM);
 
-  transpose<<<blocks, threads>>>(d_inout);
-  reverse_order_batch(d_inout, n, logn, batch_size);
+  transpose<<<blocks_n1, threads>>>(d_inout);
+  reverse_order_batch(d_inout, n1, logn, n2);
 
-  ntt_ct_batch(d_inout, d_twf, n, batch_size);
+  ntt_ct_batch(d_inout, d_twf_n1, n1, n2);
 
-  batch_mul_tw_ij<<<batch_size, n>>>(d_inout, d_full_twf, n, batch_size);
+  batch_mul_tw_ij<<<n1, n2>>>(d_inout, d_full_twf, n2, n1);
 
-  transpose<<<blocks, threads>>>(d_inout);
-  reverse_order_batch(d_inout, n, logn, batch_size);
+  transpose<<<blocks_n2, threads>>>(d_inout);
+  reverse_order_batch(d_inout, n2, logn, n1);
 
-  ntt_ct_batch(d_inout, d_twf, n, batch_size);
+  ntt_ct_batch(d_inout, d_twf_n2, n2, n1);
 
-  transpose<<<blocks, threads>>>(d_inout);
+  transpose<<<blocks_n2, threads>>>(d_inout);
 
   return 0;
 }
