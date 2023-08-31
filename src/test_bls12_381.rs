@@ -1595,7 +1595,7 @@ pub(crate) mod tests_bls12_381 {
     #[test]
     fn test_scalar_bailey_ntt() {
         let batch_size = 1;
-        let log_test_domain_size = 20;
+        let log_test_domain_size = 18;
         let domain_size = 1 << log_test_domain_size;
         let coeff_size = domain_size;
         let (h_coeffs, mut d_coeffs, mut d_domain) =
@@ -1603,39 +1603,25 @@ pub(crate) mod tests_bls12_381 {
         let (_, _, mut d_bailey_domain) =
             set_up_scalars_bls12_381(0, log_test_domain_size / 2, false);
 
-        //fast_ntt_batch_bls12_381(&mut d_coeffs, &mut d_domain, batch_size);
+        let mut d_fast = DeviceBuffer::from_slice(&h_coeffs[..]).unwrap();
 
+        fast_ntt_batch_bls12_381(&mut d_fast, &mut d_domain, batch_size);
+        reverse_order_scalars_batch_bls12_381(&mut d_fast, batch_size);        
+        
         bailey_ntt_bls12_381(
             &mut d_coeffs,
             &mut d_bailey_domain,
             &mut d_domain,
             1 << log_test_domain_size / 2,
         );
-        reverse_order_scalars_batch_bls12_381(&mut d_coeffs, batch_size);
 
+        let mut h_fast: Vec<ScalarField_BLS12_381> = vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+        d_fast.copy_to(&mut h_fast[..]).unwrap();
+        
+        let mut h_bailey_coeffs: Vec<ScalarField_BLS12_381> = vec![ScalarField_BLS12_381::zero(); domain_size * batch_size];
+        d_coeffs.copy_to(&mut h_bailey_coeffs[..]).unwrap();
 
-        let mut d_evals = d_coeffs;
-
-        let (_, _, mut d_domain_inv) = set_up_scalars_bls12_381(0, log_test_domain_size, true);
-        let d_coeffs_domain =
-            interpolate_scalars_batch_bls12_381(&mut d_evals, &mut d_domain_inv, batch_size);
-        let mut h_coeffs_domain: Vec<ScalarField_BLS12_381> = (0..domain_size * batch_size)
-            .map(|_| ScalarField_BLS12_381::zero())
-            .collect();
-        d_coeffs_domain.copy_to(&mut h_coeffs_domain[..]).unwrap();
-
-        for j in 0..batch_size {
-            assert_eq!(
-                h_coeffs[j * coeff_size..(j + 1) * coeff_size][3],
-                h_coeffs_domain[j * domain_size..j * domain_size + coeff_size][3]
-            );
-            for i in coeff_size..domain_size {
-                assert_eq!(
-                    ScalarField_BLS12_381::zero(),
-                    h_coeffs_domain[j * domain_size + i]
-                );
-            }
-        }
+        assert_eq!(h_fast,  h_bailey_coeffs);
     }
 
     #[test]
