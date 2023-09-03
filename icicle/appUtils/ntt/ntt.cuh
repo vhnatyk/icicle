@@ -531,10 +531,10 @@ __global__ void ntt_template_kernel_shared(E *__restrict__ arr_g, uint32_t n, co
  * @param s log2(n) loop index.
  */
 template <typename E, typename S>
- __launch_bounds__(MAX_THREADS_BATCH, 3)
-__global__ void ntt_template_ct_kernel_shared(
-    E *__restrict__ arr_g, uint32_t n, const S *__restrict__ r_twiddles,
-    uint32_t n_twiddles, uint32_t max_task, uint32_t s_init, uint32_t logn)
+__launch_bounds__(MAX_THREADS_BATCH, 3)
+    __global__ void ntt_template_ct_kernel_shared(
+        E *__restrict__ arr_g, uint32_t n, const S *__restrict__ r_twiddles,
+        uint32_t n_twiddles, uint32_t max_task, uint32_t s_init, uint32_t logn)
 {
   SharedMemory<E> smem;
   E *arr = smem.getPointer();
@@ -573,14 +573,20 @@ __global__ void ntt_template_ct_kernel_shared(
       uint32_t k = oij + shift_s;
 
       E u = arr_g[offset + oij];
-      E v = r_twiddles[j * n_twiddles_div] * arr_g[offset + k];
+      E v = arr_g[offset + k];
+      S tw;
+      if (s > 0)
+      {
+        tw = r_twiddles[j * n_twiddles_div];
+        v = tw * v;
+      }
 
       arr[oij] = u + v;
       arr[k] = u - v;
 
       s++;
-#pragma unroll 9
-      for (; s < logn; s++) // TODO: this loop also can be unrolled
+#pragma unroll 8
+      for (; s < logn - 1; s++) // TODO: this loop also can be unrolled
       {
         if (s > 4)
           __syncthreads();
@@ -592,24 +598,38 @@ __global__ void ntt_template_ct_kernel_shared(
 
         l = ntw_i * loop_limit + l; // to l from chunks to full
 
-        j = l & (shift_s - 1);               // Equivalent to: l % (1 << s)
+        j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+        tw = r_twiddles[j * n_twiddles_div];
         i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
         oij = i + j;
         k = oij + shift_s;
 
         u = arr[oij];
-        v = r_twiddles[j * n_twiddles_div] * arr[k];
-        if (s == (logn - 1))
-        {
-          arr_g[offset + oij] = u + v;
-          arr_g[offset + k] = u - v;
-        }
-        else
-        {
-          arr[oij] = u + v;
-          arr[k] = u - v;
-        }
+        v = tw * arr[k];
+
+        arr[oij] = u + v;
+        arr[k] = u - v;
       }
+      __syncthreads();
+
+      n_twiddles_div = n_twiddles >> (s + 1);
+
+      shift_s = 1 << s;
+      shift2_s = 2 << s;
+
+      l = ntw_i * loop_limit + l; // to l from chunks to full
+
+      j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+      tw = r_twiddles[j * n_twiddles_div];
+      i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
+      oij = i + j;
+      k = oij + shift_s;
+
+      u = arr[oij];
+      v = tw * arr[k];
+
+      arr_g[offset + oij] = u + v;
+      arr_g[offset + k] = u - v;
 
       // ... and extra write
       // arr_g[offset + l] = arr[l];
