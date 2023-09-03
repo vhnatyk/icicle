@@ -236,7 +236,7 @@ int ntt_ct_batch(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
   int max_sharedmem = 512 * sizeof(E);
   int shared_mem = 2 * NUM_THREADS * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
   uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
-  ntt_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, n, total_tasks, 0, logn_shmem, false);
+  ntt_template_ct_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, n, total_tasks, 0, logn_shmem);
 
   for (uint32_t s = logn_shmem; s < logn; s++) // TODO: this loop also can be unrolled
   {
