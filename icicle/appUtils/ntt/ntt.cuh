@@ -551,6 +551,8 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
 
     if (l < loop_limit)
     {
+      l = ntw_i * loop_limit + l; // to l from chunks to full
+
       uint32_t s = s_init;
 
       // if (s == s_init) //this actually can be faster even by introducing extra read and (see below)...
@@ -560,12 +562,9 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       //   __syncthreads();
       // }
 
-      uint32_t n_twiddles_div = n_twiddles >> (s + 1);
 
       uint32_t shift_s = 1 << s;
       uint32_t shift2_s = 2 << s;
-
-      l = ntw_i * loop_limit + l; // to l from chunks to full
 
       uint32_t j = l & (shift_s - 1);               // Equivalent to: l % (1 << s)
       uint32_t i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
@@ -577,7 +576,7 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       S tw;
       if (s > 0)
       {
-        tw = r_twiddles[j * n_twiddles_div];
+        tw = r_twiddles[j * n_twiddles >> (s + 1)];
         v = tw * v;
       }
 
@@ -591,15 +590,13 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
         if (s > 4)
           __syncthreads();
 
-        n_twiddles_div = n_twiddles >> (s + 1);
-
         shift_s = 1 << s;
         shift2_s = 2 << s;
 
         l = ntw_i * loop_limit + l; // to l from chunks to full
 
         j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-        tw = r_twiddles[j * n_twiddles_div];
+        tw = r_twiddles[j * n_twiddles >> (s + 1)];
         i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
         oij = i + j;
         k = oij + shift_s;
@@ -612,7 +609,6 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       }
       __syncthreads();
 
-      n_twiddles_div = n_twiddles >> (s + 1);
 
       shift_s = 1 << s;
       shift2_s = 2 << s;
@@ -620,7 +616,7 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       l = ntw_i * loop_limit + l; // to l from chunks to full
 
       j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-      tw = r_twiddles[j * n_twiddles_div];
+      tw = r_twiddles[j * n_twiddles >> logn];
       i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
       oij = i + j;
       k = oij + shift_s;
