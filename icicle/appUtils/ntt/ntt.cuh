@@ -398,65 +398,42 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
         //__syncthreads();
       }
 
-      s = 1;
-      shift_s = 2;
-      j = l & 1; // Equivalent to: l % (1 << s)
-      tw = r_twiddles[j * (n_div_2_twiddles >> 1)];
-      // if (j != 0)
-      //   tw = r_twiddles[n_div_2_twiddles >> 1];
-      oij = (((l >> 1) * 4) & n_m1) + j;
-      shift_s = oij + shift_s; // reuse for k
+      { // s = 1
 
-      uu = arr + oij;
-      vv = arr + oij + 2;
+        j = l & 1; // Equivalent to: l % (1 << s)
+        tw = r_twiddles[j * (n_div_2_twiddles >> 1)];
+        oij = (((l >> 1) * 4) & n_m1) + j;
 
-      uuu = uu;
-      vvv = vv;
+        uu = arr + oij;
+        vv = arr + oij + 2;
 
-      u = *uu;
-      v = *vv;
-      *uuu = u + v;
-      *vvv = j == 0 ? (u - v) : tw * (u - v);
-      // if (blockIdx.x != 0 && threadIdx.x != 0)
-      // {
-      //   tw = r_twiddles[blockIdx.x];
-      //   tw2 = tw * tw2;
-      //   tw = tw * r_twiddles[threadIdx.x * 2];
-      //   //   // tw = r_twiddles[blockIdx.x];
-      //   //   // tw2 = tw * r_twiddles[threadIdx.x * 2 + 1];
-      //   //   // tw = tw * r_twiddles[threadIdx.x * 2];
+        uuu = uu;
+        vvv = vv;
 
-      //   //   // tw = r_twiddles[blockIdx.x] * r_twiddles[threadIdx.x * 2];
-      //   //   // tw2 = r_twiddles[blockIdx.x] * r_twiddles[threadIdx.x * 2 + 1];
-      // }
-      ////////
-      // s = 0;
-      // shift_s = 1;
-      // j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
-      //  tw = r_twiddles[j * (n_twiddles >> s)];         // TODO: it all can be constant here except oij
+        u = *uu;
+        v = *vv;
+        *uuu = u + v;
+        *vvv = j == 0 ? (u - v) : tw * (u - v);
+      }
 
-      oij = ((l << 1) & n_m1); // but the simplification oij = (l >> 1) & n_m1
-                               // actually breaks correctness and decreases performance?!!
-      j = oij + 1;             // reuse for k
+      { // s = 0
 
-      uu = arr + oij;
-      vv = arr + j;
+        oij = ((l << 1) & n_m1); // but the simplification oij = (l >> 1) & n_m1
+                                 // actually breaks correctness and decreases performance?!!
+        j = oij + 1;             // reuse for k
 
-      uuu = arr_g + oij;
-      vvv = arr_g + j;
+        uu = arr + oij;
+        vv = arr + j;
 
-      u = *uu;
-      v = *vv;
-      // if (blockIdx.x == 0 || threadIdx.x == 0)
-      // {
-      *uuu = u + v;
-      *vvv = u - v; // s is 0 here - so twiddle factor is 1 - so no need to multiply
-      // }
-      // else
-      // {
-      //   *uuu = tw * (u + v);
-      //   *vvv = tw2 * (u - v); // s is 0 here - so twiddle factor is 1 - so no need to multiply
-      // }
+        uuu = arr_g + oij;
+        vvv = arr_g + j;
+
+        u = *uu;
+        v = *vv;
+
+        *uuu = u + v;
+        *vvv = u - v; // s is 0 here - so twiddle factor is 1 - so no need to multiply
+      }
     }
   }
 }
