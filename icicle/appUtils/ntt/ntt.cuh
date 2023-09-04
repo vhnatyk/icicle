@@ -523,16 +523,16 @@ __global__ void ntt_template_kernel_shared(E *__restrict__ arr_g, uint32_t n, co
 DEVICE_INLINE unsigned int combined_index(unsigned int old_index, unsigned int n1, unsigned int n2, unsigned int logn)
 {
   // Convert 1D index to 2D (row, col) index for original matrix
-  unsigned int old_row = old_index % n2;
-  unsigned int old_col = old_index / n2;
+  unsigned int old_row = old_index / n2;
+  unsigned int old_col = old_index % n2;
   // unsigned int old_row = old_index / n2;
   // unsigned int old_col = old_index % n2;
 
   // Transpose: new_row and new_col are row and column after transpose
-  unsigned int new_row = old_col;
+  unsigned int new_row = reverseBits(old_col, logn);
   // unsigned int new_col = reverse_bits(old_row, bit_length);
   // unsigned int new_col = __brev(old_row) >> (32 - logn);
-  unsigned int new_col = reverseBits(old_row, logn);
+  unsigned int new_col = old_row;
 
   // Convert back to 1D index for new matrix
   unsigned int new_index = new_row * n1 + new_col;
@@ -727,6 +727,83 @@ __global__ void ntt_template_kernel_rev_ord(E *arr, uint32_t n, uint32_t logn, u
   if (task < max_task)
   {
     reverseOrder_batch<E>(arr, n, logn, task);
+  }
+}
+
+template <typename E>
+__launch_bounds__(MAX_THREADS_BATCH, 3)
+    __global__ void tr_rbo_batch_template_kernel_shared(E * arr_g, uint32_t n, uint32_t max_task, uint32_t s_init, uint32_t logn)
+{
+  SharedMemory<E> smem;
+  E *arr = smem.getPointer();
+
+  uint32_t task = blockIdx.x;
+  uint32_t loop_limit = blockDim.x;
+  uint32_t chunks = n / (loop_limit * 2);
+  uint32_t offset = (task / chunks) * n;
+  if (task < max_task)
+  {
+    // flattened loop allows parallel processing
+    uint32_t l = threadIdx.x;
+    uint32_t ntw_i = task % chunks;
+
+    if (l < loop_limit)
+    {
+      l = ntw_i * loop_limit + l; // to l from chunks to full
+
+      uint32_t s = s_init;
+
+      // if (s == s_init) //this actually can be faster even by introducing extra read and (see below)...
+      // {
+      //   arr[l] = arr_g[offset + l];
+      //   arr[loop_limit + l] = arr_g[offset + loop_limit + l];
+      //   __syncthreads();
+      // }
+
+      uint32_t shift_s = 1 << s;
+      uint32_t shift2_s = 2 << s;
+
+      uint32_t j = l & (shift_s - 1);               // Equivalent to: l % (1 << s)
+      uint32_t i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
+      uint32_t oij = i + j;
+      uint32_t k = oij + shift_s;
+
+      uint32_t u_i = offset + oij;
+      uint32_t v_i = offset + k;
+
+      u_i = combined_index(u_i, n, n, logn);
+      v_i = combined_index(v_i, n, n, logn);
+
+      E u = arr_g[u_i];
+      E v = arr_g[v_i];
+
+      arr[oij] = u;
+      arr[k] = v;
+
+      s = logn -1;
+      
+      shift_s = 1 << s;
+      shift2_s = 2 << s;
+
+      l = ntw_i * loop_limit + l; // to l from chunks to full
+
+      j = l & (shift_s - 1); // Equivalent to: l % (1 << s)
+      //tw = r_twiddles[j * n_twiddles >> logn];
+      i = ((l >> s) * shift2_s) & (n - 1); // (..) % n (assuming n is power of 2)
+      oij = i + j;
+      k = oij + shift_s;
+
+      u = arr[oij];
+      v = arr[k];
+
+      arr_g[offset + oij] = u;
+      arr_g[offset + k] = v;
+
+      // ... and extra write
+      // arr_g[offset + l] = arr[l];
+      // arr_g[offset + loop_limit + l] = arr[l + loop_limit];
+      // __syncthreads();
+    }
   }
 }
 

@@ -191,6 +191,21 @@ extern "C" int bailey_ntt_cuda_bls12_381(BLS12_381::scalar_t *d_inout, BLS12_381
     }
 }
 
+extern "C" int transpose_rbo_batch_cuda_bls12_381(
+    BLS12_381::scalar_t *d_inout_orig, BLS12_381::scalar_t *d_inout, uint32_t n, uint32_t batch_size, size_t device_id = 0)
+{
+    try
+    {
+        BLS12_381::scalar_t *_null = nullptr;
+        return transpose_reverse_batch<BLS12_381::scalar_t>(d_inout_orig, d_inout, n, batch_size); // TODO: pass device_id
+    }
+    catch (const std::runtime_error &ex)
+    {
+        printf("error %s", ex.what());
+        return -1;
+    }
+}
+
 // extern "C" int bailey_ntt_n1n2_cuda_bls12_381(BLS12_381::scalar_t *d_inout, 
 //     BLS12_381::scalar_t *d_twf_n1, BLS12_381::scalar_t *d_twf_n2, 
 //     BLS12_381::scalar_t *d_full_twf, uint32_t n1, 

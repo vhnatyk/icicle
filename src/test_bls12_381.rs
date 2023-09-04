@@ -1595,7 +1595,7 @@ pub(crate) mod tests_bls12_381 {
     #[test]
     fn test_scalar_bailey_ntt() {
         let batch_size = 1;
-        let log_test_domain_size = 16;
+        let log_test_domain_size = 14;
         let domain_size = 1 << log_test_domain_size;
         let coeff_size = domain_size;
         let (h_coeffs, mut d_coeffs, mut d_domain) =

@@ -38,6 +38,12 @@ impl<const NUM_LIMBS: usize> Field_BLS12_381<NUM_LIMBS> {
         Field_BLS12_381 { s }
     }
 
+    pub fn from_u32(i:u32) -> Self {
+        let mut s = [0u32; NUM_LIMBS];
+        s[0] = i;
+        Field_BLS12_381 { s }
+    }
+
     fn to_bytes_le(&self) -> Vec<u8> {
         self.s
             .iter()

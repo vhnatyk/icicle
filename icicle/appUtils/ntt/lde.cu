@@ -246,6 +246,23 @@ int ntt_ct_batch(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
   return 0;
 }
 
+template <typename E>
+int transpose_reverse_batch_template(E *d_inout, unsigned n, unsigned batch_size)
+{
+  uint32_t logn = uint32_t(log(n) / log(2));
+
+  int NUM_THREADS = min(n / 2, MAX_THREADS_BATCH);
+  int chunks = 1; // max(int((n / 2) / NUM_THREADS), 1);
+  int total_tasks = batch_size * chunks;
+  int NUM_BLOCKS = total_tasks;
+  int max_sharedmem = 512 * sizeof(E);
+  int shared_mem = 2 * NUM_THREADS * sizeof(E);
+  uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
+  tr_rbo_batch_template_kernel_shared<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, total_tasks, 0, logn_shmem);
+
+  return 0;
+}
+
 template <typename S>
 int bailey_ntt(S *d_inout, S *d_twf_n1, S *d_twf_n2, S *d_full_twf, unsigned n2, unsigned n1)
 {
@@ -274,6 +291,23 @@ int bailey_ntt(S *d_inout, S *d_twf_n1, S *d_twf_n2, S *d_full_twf, unsigned n2,
   ntt_ct_batch(d_inout, d_twf_n2, n2, n1);
 
   transpose<<<blocks_n2, threads>>>(d_inout);
+
+  return 0;
+}
+
+///
+template <typename S>
+int transpose_reverse_batch(S *d_inout_orig, S *d_inout, unsigned n2, unsigned n1)
+{
+  uint32_t logn = uint32_t(log(n2) / log(2));
+
+  dim3 threads(TILE_DIM, BLOCK_ROWS);
+  dim3 blocks(n2 / TILE_DIM, n1 / TILE_DIM);
+
+  transpose<<<blocks, threads>>>(d_inout_orig);
+  reverse_order_batch(d_inout_orig, n2, logn, n1);
+
+  transpose_reverse_batch_template(d_inout, n1, n2);
 
   return 0;
 }
