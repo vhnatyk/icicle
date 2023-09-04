@@ -519,6 +519,30 @@ __global__ void ntt_template_kernel_shared(E *__restrict__ arr_g, uint32_t n, co
     }
   }
 }
+
+DEVICE_INLINE unsigned int combined_index(unsigned int old_index, unsigned int n1, unsigned int n2, unsigned int logn)
+{
+  // Convert 1D index to 2D (row, col) index for original matrix
+  unsigned int old_row = old_index % n2;
+  unsigned int old_col = old_index / n2;
+  // unsigned int old_row = old_index / n2;
+  // unsigned int old_col = old_index % n2;
+
+  // Transpose: new_row and new_col are row and column after transpose
+  unsigned int new_row = old_col;
+  // unsigned int new_col = reverse_bits(old_row, bit_length);
+  // unsigned int new_col = __brev(old_row) >> (32 - logn);
+  unsigned int new_col = reverseBits(old_row, logn);
+
+  // Convert back to 1D index for new matrix
+  unsigned int new_index = new_row * n1 + new_col;
+
+  // Perform an assertion to ensure that the new index is within bounds
+  // assert(new_index < n1 * n2 && "Index out of range");
+
+  return new_index;
+}
+
 //************************************************************************************************
 /**
  * Cooley-Tuckey NTT.
@@ -562,7 +586,6 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       //   __syncthreads();
       // }
 
-
       uint32_t shift_s = 1 << s;
       uint32_t shift2_s = 2 << s;
 
@@ -571,8 +594,14 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       uint32_t oij = i + j;
       uint32_t k = oij + shift_s;
 
-      E u = arr_g[offset + oij];
-      E v = arr_g[offset + k];
+      uint32_t u_i = offset + oij;
+      uint32_t v_i = offset + k;
+
+      u_i = combined_index(u_i, n, n, logn);
+      v_i = combined_index(v_i, n, n, logn);
+
+      E u = arr_g[u_i];
+      E v = arr_g[v_i];
       S tw;
       if (s > 0)
       {
@@ -608,7 +637,6 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
         arr[k] = u - v;
       }
       __syncthreads();
-
 
       shift_s = 1 << s;
       shift2_s = 2 << s;

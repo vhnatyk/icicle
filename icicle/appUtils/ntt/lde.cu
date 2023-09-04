@@ -261,15 +261,15 @@ int bailey_ntt(S *d_inout, S *d_twf_n1, S *d_twf_n2, S *d_full_twf, unsigned n2,
   dim3 blocks_n1(n2 / TILE_DIM, n1 / TILE_DIM);
   dim3 blocks_n2(n1 / TILE_DIM, n2 / TILE_DIM);
 
-  transpose<<<blocks_n1, threads>>>(d_inout);
-  reverse_order_batch(d_inout, n1, logn, n2);
+  // transpose<<<blocks_n1, threads>>>(d_inout);
+  // reverse_order_batch(d_inout, n1, logn, n2);
 
   ntt_ct_batch(d_inout, d_twf_n1, n1, n2);
 
   batch_mul_tw_ij<<<n1, n2>>>(d_inout, d_full_twf, n2, n1);
 
-  transpose<<<blocks_n2, threads>>>(d_inout);
-  reverse_order_batch(d_inout, n2, logn, n1);
+  // transpose<<<blocks_n2, threads>>>(d_inout);
+  // reverse_order_batch(d_inout, n2, logn, n1);
 
   ntt_ct_batch(d_inout, d_twf_n2, n2, n1);
 
