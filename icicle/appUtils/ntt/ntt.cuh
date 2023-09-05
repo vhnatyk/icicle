@@ -520,7 +520,8 @@ __global__ void ntt_template_kernel_shared(E *__restrict__ arr_g, uint32_t n, co
   }
 }
 
-DEVICE_INLINE unsigned int combined_index(unsigned int old_index, unsigned int n1, unsigned int n2, unsigned int logn)
+DEVICE_INLINE unsigned int combined_index(
+    unsigned int old_index, unsigned int n1, unsigned int n2, unsigned int logn, bool is_rbo = true)
 {
   // Convert 1D index to 2D (row, col) index for original matrix
   unsigned int old_row = old_index / n2;
@@ -529,7 +530,7 @@ DEVICE_INLINE unsigned int combined_index(unsigned int old_index, unsigned int n
   // unsigned int old_col = old_index % n2;
 
   // Transpose: new_row and new_col are row and column after transpose
-  unsigned int new_row = reverseBits(old_col, logn);
+  unsigned int new_row = is_rbo ? reverseBits(old_col, logn) : old_col;
   // unsigned int new_col = reverse_bits(old_row, bit_length);
   // unsigned int new_col = __brev(old_row) >> (32 - logn);
   unsigned int new_col = old_row;
@@ -652,8 +653,14 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       u = arr[oij];
       v = tw * arr[k];
 
-      arr_g[offset + oij] = u + v;
-      arr_g[offset + k] = u - v;
+      u_i = offset + oij;
+      v_i = offset + k;
+
+      u_i = combined_index(u_i, n, n, logn, false);
+      v_i = combined_index(v_i, n, n, logn, false);
+
+      arr_g[u_i] = u + v;
+      arr_g[v_i] = u - v;
 
       // ... and extra write
       // arr_g[offset + l] = arr[l];

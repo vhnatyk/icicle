@@ -31,10 +31,13 @@ fn bench_ntt() {
                 d_domain: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 _d_domain_full: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 batch_size: usize,
+                samples: usize,
             ) -> DeviceBuffer<ScalarField_BLS12_381> {
                 //bailey_ntt_bls12_381(d_evaluations, d_domain, batch_size);
                 //println!("domain: {} {}", d_domain.len(), batch_size);
-                fast_ntt_batch_bls12_381(d_evaluations, d_domain, batch_size);
+                for _ in 0..samples {
+                    fast_ntt_batch_bls12_381(d_evaluations, d_domain, batch_size);
+                }
 
                 unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() }
             }
@@ -44,13 +47,16 @@ fn bench_ntt() {
                 d_domain: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 d_domain_full: &mut DeviceBuffer<ScalarField_BLS12_381>,
                 _batch_size: usize,
+                samples: usize,
             ) -> DeviceBuffer<ScalarField_BLS12_381> {
-                bailey_ntt_bls12_381(
-                    d_evaluations,
-                    d_domain,
-                    d_domain_full,
-                    d_domain_full.len() / d_domain.len(),
-                );
+                for _ in 0..samples {
+                    bailey_ntt_bls12_381(
+                        d_evaluations,
+                        d_domain,
+                        d_domain_full,
+                        d_domain_full.len() / d_domain.len(),
+                    );
+                }
                 unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() }
             }
 
@@ -118,7 +124,7 @@ fn bench_ntt() {
                 bailey_ntt,
                 "Bailey NTT",
                 false,
-                100,
+                1000,
             );
 
             // bench_template(
@@ -156,6 +162,7 @@ fn bench_template<E, S>(
         d_domain: &mut DeviceBuffer<S>,
         d_domain_full: &mut DeviceBuffer<S>,
         batch_size: usize,
+        samples: usize,
     ) -> DeviceBuffer<E>,
     id: &str,
     inverse: bool,
@@ -190,12 +197,11 @@ fn bench_template<E, S>(
         .unwrap_or_else(|| unsafe { DeviceBuffer::uninitialized(d_domain.len()).unwrap() });
 
     range_push!("{}", bench_id);
-    let _first = bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size);
+    let _first = bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size, 1);
+    let _warmup = bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size, 10);
     //start_timer!(bench_id);
     let start = Instant::now();
-    for _ in 0..samples {
-        bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size);
-    }
+    bench_fn(&mut d_evals, &mut d_domain, &mut d_domain_full, batch_size, samples);
     //end_timer!(bench_id);
     let elapsed = start.elapsed();
     println!(
