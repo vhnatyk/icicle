@@ -246,6 +246,23 @@ int ntt_ct_batch(E *d_inout, S *d_twf, unsigned n, unsigned batch_size)
   return 0;
 }
 
+template <typename E, typename S>
+int ntt_ct_batch_wij(E *d_inout, S *d_twf, S *d_twf_wij, unsigned n, unsigned batch_size)
+{
+  uint32_t logn = uint32_t(log(n) / log(2));
+
+  int NUM_THREADS = min(n / 2, MAX_THREADS_BATCH);
+  int chunks = max(int((n / 2) / NUM_THREADS), 1);
+  int total_tasks = batch_size * chunks;
+  int NUM_BLOCKS = total_tasks;
+  int max_sharedmem = 512 * sizeof(E);
+  int shared_mem = 2 * NUM_THREADS * sizeof(E); // TODO: calculator, as shared mem size may be more efficient less then max to allow more concurrent blocks on SM
+  uint32_t logn_shmem = uint32_t(log(2 * NUM_THREADS) / log(2));
+  ntt_template_ct_kernel_shared_wij<<<NUM_BLOCKS, NUM_THREADS, shared_mem, 0>>>(d_inout, 1 << logn_shmem, d_twf, d_twf_wij, n, total_tasks, 0, logn_shmem);
+
+  return 0;
+}
+
 template <typename E>
 int transpose_reverse_batch_template(E *d_inout, unsigned n, unsigned batch_size)
 {
@@ -281,9 +298,10 @@ int bailey_ntt(S *d_inout, S *d_twf_n1, S *d_twf_n2, S *d_full_twf, unsigned n2,
   // transpose<<<blocks_n1, threads>>>(d_inout);
   // reverse_order_batch(d_inout, n1, logn, n2);
 
-  ntt_ct_batch(d_inout, d_twf_n1, n1, n2);
+  //ntt_ct_batch(d_inout, d_twf_n1, n1, n2);
+  ntt_ct_batch_wij(d_inout, d_twf_n1, d_full_twf, n1, n2);
 
-  batch_mul_tw_ij<<<n1, n2>>>(d_inout, d_full_twf, n2, n1);
+  //batch_mul_tw_ij<<<n1, n2>>>(d_inout, d_full_twf, n2, n1);
 
   // transpose<<<blocks_n2, threads>>>(d_inout);
   // reverse_order_batch(d_inout, n2, logn, n1);
