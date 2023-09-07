@@ -337,8 +337,8 @@ __global__ void batch_mul_tw_ij(E *element_vec, S *scalar_vec, unsigned n2, unsi
  * @param s log2(n) loop index.
  */
 template <typename E, typename S>
-__launch_bounds__(MAX_THREADS_BATCH, 3)
-    __global__ void ntt_template_kernel_shared_rev(E *__restrict__ arr_g, uint32_t n, const S *__restrict__ r_twiddles, uint32_t n_div_2_twiddles, uint32_t max_task, uint8_t ss, uint8_t logn_m_1, uint32_t n_div_log2_blocks, uint32_t num_blocks2x, uint32_t n_m1)
+// __launch_bounds__(MAX_THREADS_BATCH, 3)
+__global__ void ntt_template_kernel_shared_rev(E *__restrict__ arr_g, uint32_t n, const S *__restrict__ r_twiddles, uint32_t n_div_2_twiddles, uint32_t max_task, uint8_t ss, uint8_t logn_m_1, uint32_t n_div_log2_blocks, uint32_t num_blocks2x, uint32_t n_m1)
 {
   if (blockIdx.x < max_task)
   {
@@ -521,6 +521,7 @@ __global__ void ntt_template_kernel_shared(E *__restrict__ arr_g, uint32_t n, co
 }
 
 DEVICE_INLINE unsigned int combined_index(
+    // __device__ unsigned int combined_index(
     unsigned int old_index, unsigned int n1, unsigned int n2, unsigned int logn, bool is_rbo = true)
 {
   // Convert 1D index to 2D (row, col) index for original matrix
@@ -580,13 +581,6 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
 
       uint32_t s = s_init;
 
-      // if (s == s_init) //this actually can be faster even by introducing extra read and (see below)...
-      // {
-      //   arr[l] = arr_g[offset + l];
-      //   arr[loop_limit + l] = arr_g[offset + loop_limit + l];
-      //   __syncthreads();
-      // }
-
       uint32_t shift_s = 1 << s;
       uint32_t shift2_s = 2 << s;
 
@@ -597,12 +591,26 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
 
       uint32_t u_i = offset + oij;
       uint32_t v_i = offset + k;
+      // if (oij % 2 == 0)
+      {
+        arr[oij] = arr_g[u_i];
+        arr[oij + 1] = arr_g[u_i + 1];
+        // arr[oij + 2] = arr_g[u_i + 2];
+        // arr[oij + 3] = arr_g[u_i + 3];
+      }
+      __syncthreads();
 
-      u_i = combined_index(u_i, n, n, logn);
-      v_i = combined_index(v_i, n, n, logn);
+      u_i = oij;
+      v_i = k;
 
-      E u = arr_g[u_i];
-      E v = arr_g[v_i];
+      // u_i = combined_index(u_i, n, n, logn);
+      // v_i = combined_index(v_i, n, n, logn);
+
+      // u_i = offset + oij;
+      // v_i = offset + k;
+
+      E u = arr[oij];
+      E v = arr[k];
       S tw;
       if (s > 0)
       {
@@ -614,7 +622,7 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       arr[k] = u - v;
 
       s++;
-#pragma unroll
+#pragma unroll 8
       for (; s < logn - 1; s++) // TODO: this loop also can be unrolled
       {
         if (s > 4)
@@ -659,12 +667,16 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       u_i = combined_index(u_i, n, n, logn, false);
       v_i = combined_index(v_i, n, n, logn, false);
 
-      arr_g[u_i] = u + v;
-      arr_g[v_i] = u - v;
+      // u_i = offset + oij;
+      // v_i = offset + k;
+
+      arr[oij] = u + v;
+      arr[k] = u - v;
+      __syncthreads();
 
       // ... and extra write
-      // arr_g[offset + l] = arr[l];
-      // arr_g[offset + loop_limit + l] = arr[l + loop_limit];
+      arr_g[offset + oij] = arr[oij];
+      arr_g[offset + oij + 1] = arr[oij + 1];
       // __syncthreads();
     }
   }
@@ -724,11 +736,20 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       uint32_t u_i = offset + oij;
       uint32_t v_i = offset + k;
 
+      if ((oij + 1) % 2 == 0)
+      {
+        arr[oij] = arr_g[u_i];
+        arr[oij + 1] = arr_g[u_i + 1];
+        arr[oij + 2] = arr_g[u_i + 2];
+        arr[oij + 3] = arr_g[u_i + 3];
+      }
+      __syncthreads();
+
       u_i = combined_index(u_i, n, n, logn);
       v_i = combined_index(v_i, n, n, logn);
 
-      E u = arr_g[u_i];
-      E v = arr_g[v_i];
+      E u = arr[oij];
+      E v = arr[oij + 1];
       S tw;
       if (s > 0)
       {
@@ -782,17 +803,17 @@ __launch_bounds__(MAX_THREADS_BATCH, 3)
       unsigned int i_u = (offset + oij) / n;
       unsigned int j_v = (offset + oij) % n;
       tw = d_wij_twiddles[i_u * j_v];
-      arr_g[offset + oij] = tw * (u + v);
+      arr[oij] = tw * (u + v);
 
       i_u = (offset + k) / n;
       j_v = (offset + k) % n;
       tw = d_wij_twiddles[i_u * j_v];
-      arr_g[offset + k] = tw * (u - v);
+      arr[k] = tw * (u - v);
 
       // ... and extra write
-      // arr_g[offset + l] = arr[l];
-      // arr_g[offset + loop_limit + l] = arr[l + loop_limit];
-      // __syncthreads();
+      arr_g[offset + oij] = arr[oij];
+      arr_g[offset + oij + 1] = arr[oij + 1];
+      __syncthreads();
     }
   }
 }
@@ -865,8 +886,8 @@ __global__ void ntt_template_kernel_rev_ord(E *arr, uint32_t n, uint32_t logn, u
 }
 
 template <typename E>
-__launch_bounds__(MAX_THREADS_BATCH, 3)
-    __global__ void tr_rbo_batch_template_kernel_shared(E *arr_g, uint32_t n, uint32_t max_task, uint32_t s_init, uint32_t logn)
+// __launch_bounds__(MAX_THREADS_BATCH, 3)
+__global__ void tr_rbo_batch_template_kernel_shared(E *arr_g, uint32_t n, uint32_t max_task, uint32_t s_init, uint32_t logn)
 {
   SharedMemory<E> smem;
   E *arr = smem.getPointer();
