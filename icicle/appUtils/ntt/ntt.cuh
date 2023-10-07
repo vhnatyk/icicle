@@ -327,7 +327,7 @@ __global__ void batch_mul_tw_ij(E *element_vec, S *scalar_vec, unsigned n2, unsi
  * @param s log2(n) loop index.
  */
 template <typename E, typename S>
-__launch_bounds__(MAX_THREADS_BATCH, 3)
+// __launch_bounds__(MAX_THREADS_BATCH, 3)
     __global__ void ntt_template_kernel_shared_rev(E *__restrict__ arr_g, uint32_t n, const S *__restrict__ r_twiddles, uint32_t n_div_2_twiddles, uint32_t max_task, uint8_t ss, uint8_t logn_m_1, uint32_t n_div_log2_blocks, uint32_t num_blocks2x, uint32_t n_m1)
 {
   if (blockIdx.x < max_task)
