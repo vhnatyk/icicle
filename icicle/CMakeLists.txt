@@ -63,7 +63,7 @@ project(icicle LANGUAGES CUDA CXX)
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS_RELEASE "")
-set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g -G -O0")
+set(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -g -lineinfo")
 include_directories("${CMAKE_SOURCE_DIR}")
 
 
@@ -86,8 +86,16 @@ if (NOT IS_CURVE_SUPPORTED)
   message( FATAL_ERROR "The value of CURVE variable: ${CURVE} is not one of the supported curves: ${SUPPORTED_CURVES}" )
 endif ()
 
+if (DEVMODE STREQUAL "ON")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O0 --ptxas-options=-O0 --ptxas-options=-allow-expensive-optimizations=false -DDEVMODE=ON")
+endif ()
+
 if (G2_DEFINED STREQUAL "ON")
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DG2_DEFINED=ON")
+endif ()
+
+if (ECNTT_DEFINED STREQUAL "ON")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -DECNTT_DEFINED=ON")
 endif ()
 
 option(BUILD_TESTS "Build tests" OFF)

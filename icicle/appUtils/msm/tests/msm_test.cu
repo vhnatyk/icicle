@@ -86,7 +86,9 @@ public:
   {
     Dummy_Projective res = zero();
 #ifdef CUDA_ARCH
-#pragma unroll
+    // clang-format off
+UNROLL
+    // clang-format on
 #endif
     for (int i = 0; i < Dummy_Scalar::NBITS; i++) {
       if (i > 0) { res = res + res; }

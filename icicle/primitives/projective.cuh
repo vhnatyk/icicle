@@ -134,7 +134,9 @@ public:
   {
     Projective res = zero();
 #ifdef __CUDA_ARCH__
-#pragma unroll
+    // clang-format off
+UNROLL
+    // clang-format on
 #endif
     for (int i = 0; i < SCALAR_FF::NBITS; i++) {
       if (i > 0) { res = res + res; }
