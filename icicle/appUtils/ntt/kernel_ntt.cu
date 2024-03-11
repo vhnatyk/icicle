@@ -947,4 +947,10 @@ namespace mxntt {
     int coset_gen_index,
     cudaStream_t cuda_stream);
 #endif // ECNTT_DEFINED
+
+#if defined(DEVMODE) || defined(DEBUG)
+#if CURVE_ID == BW6_761
+// ddw
+#endif
+#endif
 } // namespace mxntt

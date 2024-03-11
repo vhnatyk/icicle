@@ -87,7 +87,8 @@ if (NOT IS_CURVE_SUPPORTED)
 endif ()
 
 if (DEVMODE STREQUAL "ON")
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O0 --ptxas-options=-O0 --ptxas-options=-allow-expensive-optimizations=false -DDEVMODE=ON")
+  message( WARNING, "testtttt")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O0 -Xcompiler=-O0 -v --ptxas-options=-v --ptxas-options=-O0 --ptxas-options=-allow-expensive-optimizations=false -DDEVMODE=ON")
 endif ()
 
 if (G2_DEFINED STREQUAL "ON")
@@ -124,6 +125,7 @@ if (NOT BUILD_TESTS)
     ${ICICLE_SOURCES}
   )
   set_target_properties(icicle PROPERTIES OUTPUT_NAME "ingo_${CURVE}")
+  set_target_properties(icicle PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
   target_compile_definitions(icicle PRIVATE CURVE=${CURVE})  
 
 else()

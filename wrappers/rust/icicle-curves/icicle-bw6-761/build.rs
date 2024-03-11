@@ -4,11 +4,12 @@ fn main() {
     println!("cargo:rerun-if-env-changed=CXXFLAGS");
     println!("cargo:rerun-if-changed=../../../../icicle");
 
+  
     // Base config
     let mut config = Config::new("../../../../icicle");
     config
         .define("BUILD_TESTS", "OFF")
-        .define("CURVE", "bls12_377")
+        .define("CURVE", "bw6_761")
         .define("CMAKE_BUILD_TYPE", "Release");
 
     // Optional Features
@@ -28,6 +29,7 @@ fn main() {
 
     println!("cargo:rustc-link-search={}/build", out_dir.display());
     println!("cargo:rustc-link-lib=ingo_bls12_377");
+    println!("cargo:rustc-link-lib=ingo_bw6_761");
 
     println!("cargo:rustc-link-lib=stdc++");
     println!("cargo:rustc-link-lib=cudart");
