@@ -12,7 +12,9 @@ else()
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
-# add the target cuda architectures
+set(CUDA_SEPARABLE_COMPILATION ON)
+
+# add the target cuda architectures --relocatable-device-code=true
 # each additional architecture increases the compilation time and output file size
 if(${CMAKE_VERSION} VERSION_LESS "3.24.0")
   set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
@@ -124,6 +126,7 @@ if (NOT BUILD_TESTS)
     ${ICICLE_SOURCES}
   )
   set_target_properties(icicle PROPERTIES OUTPUT_NAME "ingo_${CURVE}")
+  set_target_properties(icicle PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
   target_compile_definitions(icicle PRIVATE CURVE=${CURVE})  
 
 else()

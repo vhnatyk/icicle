@@ -930,7 +930,7 @@ namespace mxntt {
     int coset_gen_index,
     cudaStream_t cuda_stream);
 
-#if defined(ECNTT_DEFINED)
+#if defined(ECNTT_DEFINED) && CURVE_ID != BW6_761 // TODO: BW6_761 compilation takes too long in Rust
   template cudaError_t mixed_radix_ntt<curve_config::projective_t, curve_config::scalar_t>(
     curve_config::projective_t* d_input,
     curve_config::projective_t* d_output,
