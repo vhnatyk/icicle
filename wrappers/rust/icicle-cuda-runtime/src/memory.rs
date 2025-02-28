@@ -224,10 +224,10 @@ impl<T> DeviceSlice<T> {
         Ok(())
     }
 
-    pub fn copy_to_device(&self, val: &mut DeviceSlice<T>) -> CudaResult<()> {
+    pub fn copy_to_device(&self, dest: &mut DeviceSlice<T>) -> CudaResult<()> {
         assert!(
-            self.len() == val.len(),
-            "In copy to device, destination and source slices have different lengths"
+            self.len() <= dest.len(),
+            "In copy to device, destination length is smaller than value length"
         );
         check_device(
             self.device_id()
@@ -237,7 +237,7 @@ impl<T> DeviceSlice<T> {
         if size != 0 {
             unsafe {
                 cudaMemcpy(
-                    val.as_mut_ptr() as *mut c_void,
+                    dest.as_mut_ptr() as *mut c_void,
                     self.as_ptr() as *const c_void,
                     size,
                     cudaMemcpyKind::cudaMemcpyDeviceToDevice,
@@ -396,7 +396,7 @@ impl<T> DeviceVec<T> {
             .ok_or(CudaError::cudaErrorMemoryAllocation)?; // Prevent overflow
 
         if size == 0 {
-            return Err(CudaError::cudaErrorMemoryAllocation);
+            return Err(CudaError::cudaErrorMemoryAllocation); //TODO: panic with clear message instead?
         }
 
         let mut new_device_ptr = MaybeUninit::<*mut c_void>::uninit();
